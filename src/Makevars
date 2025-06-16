@@ -1,0 +1,4 @@
+## With Rcpp 0.11.0 and later, we no longer need to set PKG_LIBS as there is
+CXX_STD = CXX17
+CXX17FLAGS+=-Wno-ignored-attributes
+PKG_CXXFLAGS += -Wa,-mbig-obj
