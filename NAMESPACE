@@ -5,3 +5,5 @@ S3method(plot,stvc)
 S3method(plot,svc)
 S3method(plot,tvc)
 export(stdglm)
+
+importFrom("stats", "filter", "qnorm")
