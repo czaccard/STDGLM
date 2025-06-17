@@ -1,1 +1,6 @@
 ^LICENSE\.md$
+^\.github$
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.Rhistory$
+^tools$

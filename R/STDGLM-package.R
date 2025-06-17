@@ -1,4 +1,4 @@
 ## usethis namespace: start
-#' @importFrom Rcpp sourceCpp
+#' @importFrom rlang .data
 #' @useDynLib STDGLM, .registration = TRUE
 ## usethis namespace: end

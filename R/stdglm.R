@@ -107,5 +107,6 @@ stdglm = function(y, X, Z = NULL, offset = NULL,
                nrep, nburn, thin, print.interval,
                V_beta_0, V_gamma, 
                a1, b1, s2_a, s2_b, keepY, keepLogLik, out_prev)
+  class(re) = c("stdglm", class(re))
   return(re)
 }

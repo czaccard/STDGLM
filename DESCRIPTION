@@ -9,13 +9,13 @@ BugReports: https://github.com/czaccard/STDGLM/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
 Imports: 
-    Rcpp,
-    RcppEigen,
-    RcppDist
-Suggests: 
     dplyr,
     ggplot2,
     ggpubr,
+    Rcpp,
+    tidyr
+Suggests:
+    rlang,
     sf
 LinkingTo: Rcpp, RcppEigen, RcppDist
 Roxygen: list(markdown = TRUE)
