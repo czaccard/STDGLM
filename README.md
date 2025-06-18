@@ -1,5 +1,10 @@
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/czaccard/STDGLM/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/czaccard/STDGLM/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
+
 # STDGLM
-R package STDGLM by Carlo Zaccardi
+R package: Spatio-Temporal Dynamic Generalized Linear Models (STDGLM) by Carlo Zaccardi
 
 
 ## TO-DO
