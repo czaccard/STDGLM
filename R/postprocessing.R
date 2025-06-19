@@ -25,6 +25,7 @@
 #' 
 #' @keywords plot
 #' 
+#' @importFrom rlang .data
 #' @export
 #'
 plot.stdglm <- function(x, type = 'fitted', ...) {

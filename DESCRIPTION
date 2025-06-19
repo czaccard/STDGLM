@@ -6,7 +6,7 @@ Authors@R:
 Description: Fit Spatio-Temporal Dynamic Generalized Linear Models (STDGLM), where a set of coefficients is allowed to vary in space and time, and another (optional) set remains constant.
 URL: https://github.com/czaccard/STDGLM
 BugReports: https://github.com/czaccard/STDGLM/issues
-License: MIT + file LICENSE
+License: GPL (>= 3)
 Encoding: UTF-8
 Imports: 
     dplyr,
@@ -15,8 +15,11 @@ Imports:
     Rcpp,
     tidyr
 Suggests:
+    knitr,
     rlang,
+    rmarkdown,
     sf
 LinkingTo: Rcpp, RcppEigen, RcppDist
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
+VignetteBuilder: knitr
