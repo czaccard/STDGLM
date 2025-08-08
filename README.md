@@ -6,6 +6,11 @@
 # STDGLM
 R package: Spatio-Temporal Dynamic Generalized Linear Models (STDGLM) by Carlo Zaccardi
 
+# Installation
+```r
+# install.packages("devtools")
+devtools::install_github("czaccard/STDGLM")
+```
 
 ## TO-DO
 - Add examples
