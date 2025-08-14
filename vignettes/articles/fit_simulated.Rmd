@@ -21,7 +21,7 @@ This article demonstrates how to fit a spatio-temporal dynamic generalized linea
 
 ```{r setup, eval = ev_}
 library(STDGLM)
-library(tidyverse)
+library(dplyr)
 library(ggpubr)
 library(coda)
 library(sf)
