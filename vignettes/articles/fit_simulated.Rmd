@@ -1,0 +1,229 @@
+---
+title: "Simulated Data Analysis"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: hide
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+ev_ = TRUE
+```
+
+
+This article demonstrates how to fit a spatio-temporal dynamic generalized linear model (STDGLM) to simulated data using the `STDGLM` package. First, we load the required packages.
+
+```{r setup, eval = ev_}
+library(STDGLM)
+library(tidyverse)
+library(ggpubr)
+library(coda)
+library(sf)
+```
+
+
+# Data Generation
+
+The following chunk generates some covariates. We randomly sample $p=30$ spatial locations within the unit square. At these locations, we generate $J=3$ covariates (`X`) whose effects vary in spacetime, the first one being an intercept, and $q=1$ covariate (`z`) whose effect is held constant.
+
+```{r, eval = ev_, class.source = "fold-show"}
+p = 30
+set.seed(123)
+coords = data.frame(x = runif(p), y = runif(p)) %>% 
+  arrange(x, y)
+dist_mat = as.matrix(dist(coords))
+t = 100
+J = 3
+X = array(1, dim = c(p, t, J))
+for (j in 2:J) {
+  for (t_ in 1:t) {
+    set.seed(j*t_)
+    X[, t_, j] = rnorm(p)
+  }
+}
+q=1
+set.seed(10)
+z = array(rnorm(p*t*q), dim = c(p, t, q))
+```
+
+
+Then we simulate some varying coefficients and plot them.
+
+```{r, eval = ev_, class.source = "fold-show"}
+beta0 <- outer(
+  seq(0.7, 1.5, length.out = p),
+  0*(seq(0,1,length.out = t)-0.5) - 100*(seq(0,1,length.out = t)-0.5)^2 + 30
+)
+
+tempo <- (1:t)
+beta1 <- outer(
+  - .6* (coords$x-.9)^2 + .6* (coords$y-.5)^2,
+  sin(tempo/t*2*pi) + 3, FUN = "+"
+)
+
+beta2 = outer(
+  - .6* (coords$x-.9)^2 + 1* (coords$y-.5)^2,
+  0.5*sin(tempo/t*2*pi) + 0.5*cos(tempo/t*4*pi), 
+  FUN = "+"
+)
+
+```
+
+
+```{r}
+matplot(t(beta0), type = 'l', main = 'Beta 0', xlab = 'Time')
+matplot(t(beta1), type = 'l', main = 'Beta 1', xlab = 'Time')
+matplot(t(beta2), type = 'l', main = 'Beta 2', xlab = 'Time')
+```
+
+Next, we simulate the response variable `Y` using the observation equation. The observation error is assumed to be normally distributed with mean zero and variance \(\sigma_\epsilon^2 = 2\).
+```{r, eval=ev_, class.source = "fold-show"}
+gamma <- 5
+set.seed(42)
+eps = matrix(rnorm(p*t, sd = sqrt(2)), nrow = p, ncol = t)
+Y <- beta0 + beta1*X[,,2] + beta2*X[,,3] + gamma*z[,,1] + eps
+```
+
+
+```{r}
+matplot(t(Y), type = 'l', main = 'Y', xlab = 'Time')
+```
+
+# Model Fitting
+
+Before fitting the model, we need to prepare a list of prior hyperparameters. Here, we assume vague priors for all the parameters. These are also the default values used when `prior=NULL` in the `stdglm` function.
+
+```{r, eval = ev_}
+prior_list = list(
+  V_beta_0 = 1e4, # Prior variance of initial state
+  V_gamma = 1e6,  # Prior variance of constant coefficients
+  a1 = 0.01,      # Prior shape for temporal variance
+  b1 = 0.01,      # Prior rate for temporal variance
+  s2_a = 0.01,    # Prior shape for measurement error variance
+  s2_b = 0.01     # Prior rate for measurement error variance
+)
+```
+
+The MCMC setup is provided in the next chunk. You can adjust the number of iterations, burn-in period, thinning interval, and other parameters as needed. The `point.referenced` argument indicates that the data are point-referenced, and `random.walk` specifies that we want to use a random walk structure for time-varying parameters.
+
+```{r, eval = ev_}
+nburn <- 200                # burn-in period
+nrep <- 200                 # number of iterations to save after burn-in
+thin <- 1                   # thinning interval
+point.referenced = TRUE     # data are point-referenced
+random.walk = TRUE          # random walk structure for time-varying parameters
+print.interval = 50         # print message during execution of MCMC
+```
+
+
+The following command executes the MCMC algorithm to fit the STDGLM model to the simulated data. The `stdglm` function takes the response variable `Y`, covariates `X` and `z`, and other parameters defined above. The output is an object of class `stdglm`, i.e. a list containing the MCMC samples and other posterior summaries. The output is described in a separate article.
+
+```{r, eval = ev_}
+mod <- stdglm(y=Y, X=X, Z=z, 
+              point.referenced=point.referenced, 
+              random.walk=random.walk, 
+              W=dist_mat,
+              nrep=nrep, nburn=nburn, thin=thin, 
+              print.interval=print.interval, 
+              prior=prior_list
+)
+```
+
+## `fitted` and `plot` methods
+
+The `fitted` method provides the mean of the posterior predictive distribution for the observed data points. We can also `plot` the fitted values against the observed data for a specific location.
+```{r}
+fitted_values <- fitted(mod)
+print(dim(fitted_values))
+summary(t(fitted_values[1:5,]))
+```
+
+
+```{r}
+plot(mod, Y=Y, id=1) # pick a number between 1 and p
+```
+
+The `plot` method returns an object from the `ggplot2` package, so it is straightforward to customize, save, and arrange multiple plots.
+
+```{r}
+g1 = plot(mod, Y=Y, id=1)
+# ggsave("plot1.png", plot = g1)
+g2 = plot(mod, Y=Y, id=2)
+# ggsave("plot2.png", plot = g2)
+
+ggarrange(g1, g2, labels = c("#ID 1", "#ID 2"), label.x = 0.8)
+```
+
+The `plot` method can also be used to visualize the time-varying, space-varying, and spacetime-varying coefficients. The returned object is a `ggplot` object. The label "Observed" indicates that the values refer to the observed spatio-temporal data points. For time-varying and spacetime-varying coefficients, the 95\% credible intervals (CI) are within the dashed lines, whereas for the space-varying coefficients the posterior standard deviation is shown for each location.
+
+```{r}
+plot(mod, 'tvc')
+coords_sf = st_as_sf(coords, coords = c("x", "y"))
+unit_square_coords <- matrix(
+  c(
+    0, 0,
+    1, 0,
+    1, 1,
+    0, 1,
+    0, 0
+  ),
+  ncol = 2,
+  byrow = TRUE
+)
+region = st_sf(
+  geometry = st_sfc(st_polygon(list(unit_square_coords)))
+)
+plot(mod, 'svc', coords_sf, region)
+plot(mod, 'stvc', ids=c(1:9))
+```
+
+
+## Trace plots
+We can also visualize the trace plots of the MCMC samples for the parameters of interest. For that purpose, we can convert the output to an `mcmc` object, then use the `plot` function from the `coda` package.
+```{r}
+plot(mcmc(t(mod$out$sigma2))) # measurement error variance
+plot(mcmc(t(mod$out$Q1inv_time^-1))) # temporal evolution variances for j=1,...,J
+plot(mcmc(t(mod$out$rho1_space))) # partial sill of spatial effects for j=1,...,J
+plot(mcmc(t(mod$out$rho2_space))) # range of spatial effects for j=1,...,J
+plot(mcmc(t(mod$out$rho1_spacetime))) # partial sill of spatio-temporal effects for j=1,...,J
+plot(mcmc(t(mod$out$rho2_spacetime))) # range of spatio-temporal effects for j=1,...,J
+if (!random.walk) {
+  plot(mcmc(t(mod$out$phi_AR1_time))) # AR(1) coefficient for temporal evolution for j=1,...,J
+  plot(mcmc(t(mod$out$phi_AR1_spacetime))) # AR(1) coefficient for spatio-temporal evolution for j=1,...,J
+}
+plot(mcmc(t(mod$out$gamma))) #  coefficient of the z covariate
+```
+
+
+## Restoring previous state
+The MCMC algorithm has not converged yet, however it is very easy to continue previous chain. You just need to provide `mod` as an argument to the `stdglm` function. The MCMC will continue from the last saved state. *Note that all previous samples will be discarded*.
+
+```{r, eval = FALSE}
+mod <- stdglm(y=Y, X=X, Z=z, 
+              point.referenced=point.referenced, 
+              random.walk=random.walk, 
+              W=dist_mat,
+              nrep=nrep, nburn=nburn, thin=thin, 
+              print.interval=print.interval, 
+              prior=prior_list,
+              last_run = mod
+)
+```
+
+
+## Model Selection and Comparison
+The `stdglm` object also contains information for model selection and comparison, including the Deviance Information Criterion (DIC), the Widely Applicable Information Criterion (WAIC), and the Continuous Ranked Probability Score (CRPS). These are all described in a separate article.
+```{r}
+print(mod$ave$DIC)
+print(mod$ave$WAIC)
+print(mod$ave$CRPS)
+```
+
+
+

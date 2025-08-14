@@ -10,7 +10,7 @@ R package: Spatio-Temporal Dynamic Generalized Linear Models (STDGLM) by Carlo Z
 ## TO-DO
 - Add examples
 - Document `sdglm` and `plot.sdglm` better
-- Add non-gaussian responses
+- Add non-Gaussian responses
 - Add seasonal temporal effects
 - Allow for different priors for variances and ranges
 - Separate prediction and fitting functions

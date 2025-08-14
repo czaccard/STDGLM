@@ -4,7 +4,7 @@ Version: 0.0.0.9000
 Authors@R: 
     person("Carlo", "Zaccardi", email = "carlo.zaccardi@unich.it", role = c("aut", "cre"), comment = c(ORCID = "0009-0002-7156-1369"))
 Description: Fit Spatio-Temporal Dynamic Generalized Linear Models (STDGLM), where a set of coefficients is allowed to vary in space and time, and another (optional) set remains constant.
-URL: https://github.com/czaccard/STDGLM
+URL: https://github.com/czaccard/STDGLM, https://czaccard.github.io/STDGLM/
 BugReports: https://github.com/czaccard/STDGLM/issues
 License: GPL (>= 3)
 Encoding: UTF-8
@@ -23,3 +23,7 @@ LinkingTo: Rcpp, RcppEigen, RcppDist
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 VignetteBuilder: knitr
+Depends: 
+    R (>= 3.5)
+LazyData: true
+Config/Needs/website: rmarkdown

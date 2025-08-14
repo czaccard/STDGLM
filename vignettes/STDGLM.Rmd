@@ -1,5 +1,5 @@
 ---
-title: "STDGLM"
+title: "Introduction to STDGLM"
 output: 
   html_document:
     toc: true
@@ -8,8 +8,9 @@ output:
     code_folding: hide
   # pdf_document:
   #   latex_engine: xelatex
+bibliography: references.bib
 vignette: >
-  %\VignetteIndexEntry{STDGLM}
+  %\VignetteIndexEntry{Introduction}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -21,9 +22,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
-library(STDGLM)
-```
+
 
 # Introduction
 The `STDGLM` package provides a framework for fitting spatio-temporal dynamic generalized linear models. These models are useful for analyzing data that varies over both space and time, allowing for the incorporation of spatial and temporal dependencies in the modeling process. The package provides functions for fitting these models, as well as tools for visualizing and interpreting the results.
@@ -37,77 +36,97 @@ if (!requireNamespace("devtools", quietly = TRUE)) {
 devtools::install_github("czaccard/STDGLM")
 ```
 
+
+Run the following command to load the package:
+
+```{r, eval = TRUE}
+# library(STDGLM)
+```
+
+
 # Detailed Explanation on supported STDGLMs
-As for the current version of the package (`0.0.0.9000`), only Gaussian outcomes are supported. Specifically only dynamic linear models (DLMs) with the following specification can be handled:
+Let $p$ denote the number of *spatial units* (either georeferenced locations or areal units) where data is collected, and let $T$ denote the number of *time points*. As for the current version of the package (`0.0.0.9000`), only Gaussian outcomes are supported. Specifically only dynamic linear models (DLMs) with the following **observation equation** can be handled:
 $$
-    y_t = \boldsymbol{x}_t' \boldsymbol{\beta}_t + \boldsymbol{z}_t' \boldsymbol{\gamma} + \epsilon_t, \quad \epsilon_t \sim N(0, \sigma_\epsilon^2)
-$$
-$$
-    \boldsymbol{\beta}_t = \boldsymbol{F}_t \boldsymbol{\beta}_{t-1} + \boldsymbol{\eta}_t, \quad \boldsymbol{\eta}_t \sim N(0, \boldsymbol{\Sigma}_\eta)
+    y_{it} = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)
 $$
 where:
 
-- \(y_t\) is the response variable at time \(t\),
+- \(y_{it}\) is the response variable at spatial unit $i=1, \dots, p$ and time $t=1, \dots, T$,
 
-- \(\boldsymbol{x}_t\) is a $p$-dimensional vector of covariates at time $t$ (an intercept may or may not included here),
+- \(\boldsymbol{x}_{it} = (x_{1,it}, \dots, x_{J,it})'\) is a $J$-dimensional ($J\ge 1$) vector of covariates at spatial unit $i$ at time $t$ (an intercept may or may not be included here),
 
-- \(\boldsymbol{\beta}_t\) is the state vector at time $t$,
+- \(\boldsymbol{\beta}_{it} = (\beta_{1,it}, \dots, \beta_{J,it})'\) is the state vector at time $t$ at spatial unit $i$,
 
-- \(\boldsymbol{z}_t\) is a $q$-dimensional vector of covariates whose effects are constant (an intercept may or may not included here),
+- \(\boldsymbol{z}_{it}\) is a $q$-dimensional vector of covariates whose effects are constant (an intercept may or may not be included here),
 
 - \(\boldsymbol{\gamma}\) is a vector of non-varying coefficients,
 
-- \(\epsilon_t\) is the observation error at time \(t\),
+- \(\epsilon_{it}\) is the observation error at time \(t\) at spatial unit $i$.
 
-- \(\boldsymbol{F}_t = \phi \boldsymbol{I}_p\) is a transition matrix,
-
-- \(\boldsymbol{\Sigma}_\eta\) is the covariance matrix of the state evolution error \(\boldsymbol{\eta}_t\).
-
-The state equation is adapted to account for spatial correlations in the state vector. Let $p$ denote the number of *spatial units* (either georeferenced locations or areal units) where data is collected, then $\boldsymbol{\beta}_t = (\beta_{1,t}, \dots, \beta_{p,t})'$, where $\beta_{i,t}$ is the effect of the covariate $x_{i,t}$ on the outcome at spatial unit $i=1, \dots, p$ and time $t=1, \dots, T$.
-
-The state evolution covariance matrix $\boldsymbol{\Sigma}_\eta$ can be structured to reflect *spatial relationships*, e.g. by assuming an **exponential covariance function** if the data are point-referenced:
+The evolution of the state vector is described by the following **state equation**, which accounts for spatial correlations in the state vector:
 $$
-        (\boldsymbol{\Sigma}_\eta)_{ij} = \rho_1 \exp\left(-\frac{d_{ij}}{\rho_2}\right), \quad d_{ij} = \| \boldsymbol{s}_i - \boldsymbol{s}_j \|
+    \boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J
 $$
-where $\rho_1$ is the partial sill, $\rho_2$ is the range parameter, and $d_{ij}$ is the Euclidean distance between locations $\boldsymbol{s}_i$ and $\boldsymbol{s}_j$. At the moment, this is the only supported covariance structure for point-referenced data.
 
-In this case, the evolution error $\boldsymbol{\eta}_t$ is assumed to be a zero-mean Gaussian process with exponential covariance matrix parameteterized by $\rho_1$ and $\rho_2$, which we will denote as $\boldsymbol{\eta}_t \sim GP(0, \rho_1, \rho_2; exp)$.
+where:
+
+- \(\boldsymbol{\beta}_{j,t} = (\beta_{j,1t}, \dots, \beta_{j,pt})'\) is the state vector related to the \(j\)-th covariate \( x_{j,t} = (x_{j,1t}, \dots, x_{j,pt})'\), at time \(t\) for all spatial units,
+
+- \(\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p\) is a transition matrix,
+
+- \(\boldsymbol{\Sigma}_{\eta,j}\) is the covariance matrix of the state evolution error \(\boldsymbol{\eta}_{j,t}\).
+
+The transition matrix \(\boldsymbol{F}_{j,t}, j=1, \dots, J,\) is assumed to be a scalar multiple of the identity matrix. The parameter \(\phi_j^{(\mathsf{T})}\) controls the temporal autocorrelation of the state vector.
+
+The state evolution covariance matrix $\boldsymbol{\Sigma}_{\eta,j}$ can be structured to reflect *spatial relationships*, e.g. by assuming an **exponential covariance function** if the data are point-referenced:
+$$
+        (\boldsymbol{\Sigma}_{\eta,j})_{i\ell} = \rho_{j,2} \exp\left(-\frac{d_{i\ell}}{\rho_{j,2}}\right), \quad d_{i\ell} = \| \boldsymbol{s}_i - \boldsymbol{s}_\ell \|
+$$
+where $\rho_{j,1}$ is the partial sill, $\rho_{j,2}$ is the range parameter, and $ d_{i\ell}$ is the Euclidean distance between locations $\boldsymbol{s}_i$ and $\boldsymbol{s}_\ell$. At the moment, this is the only supported covariance structure for point-referenced data.
+
+In this case, the evolution error $\boldsymbol{\eta}_{j,t}$ is assumed to be a zero-mean Gaussian process with exponential covariance matrix parameteterized by $\rho_{j,1}$ and $\rho_{j,2}$, which we will denote as $\boldsymbol{\eta}_{j,t} \sim GP(0, \rho_{j,1}, \rho_{j,2}; exp)$.
 
 If the data are areal, a **proper conditional autoregressive (PCAR) covariance structure** is assumed:
 $$
-    \boldsymbol{\Sigma}_\eta = \rho_1 \left( \boldsymbol{D}_w - \rho_2 \boldsymbol{W} \right)^{-1}
+    \boldsymbol{\Sigma}_{\eta,j} = \rho_{j,1} \left( \boldsymbol{D}_w - \rho_{j,2} \boldsymbol{W} \right)^{-1}
 $$
-where $\boldsymbol{W}$ is a binary adjacency matrix, $\boldsymbol{D}_w$ is a diagonal matrix with row sums of $\boldsymbol{W}$ on the diagonal, and $\rho_1$ and $\rho_2$ are the conditional variance and autocorrelation parameters, respectively.
+where $\boldsymbol{W}$ is a binary adjacency matrix, $\boldsymbol{D}_w$ is a diagonal matrix with row sums of $\boldsymbol{W}$ on the diagonal, and $\rho_{j,1}$ and $\rho_{j,2}$ are the conditional variance and autocorrelation parameters, respectively.
 
-In this case, the evolution error $\boldsymbol{\eta}_t$ follows a zero-mean PCAR process, and we will denote this as $\boldsymbol{\eta}_t \sim PCAR(0, \rho_1, \rho_2)$.
+In this case, the evolution error $\boldsymbol{\eta}_{j,t}$ follows a zero-mean PCAR process, and we will denote this as $\boldsymbol{\eta}_{j,t} \sim PCAR(0, \rho_{j,1}, \rho_{j,2})$.
 
 
 ## ANOVA Decomposition of the State Vector
-The function `stdglm` allows for the decomposition of the state vector into components that can be interpreted as contributions from different sources of variability. The state vector $\boldsymbol{\beta}_t$ is decomposed as follows:
+The function `stdglm` allows for the decomposition of the state vector into components that can be interpreted as contributions from different sources of variability. Dropping the subscript $j$ for the sake of simplicity, the state vector $\beta_{it}$ is decomposed as follows:
 $$
-\beta_{i,t} = \overline{\beta} + \beta_{i}^{(\mathsf{S})} + \beta_{t}^{(\mathsf{T})} + \beta_{i,t}^{(\mathsf{ST})}
+\beta_{it} = \overline{\beta} + \beta_{i}^{(\mathsf{S})} + \beta_{t}^{(\mathsf{T})} + \beta_{it}^{(\mathsf{ST})}
 $$
 where:
 
 - \(\overline{\beta}\) is the overall mean effect,
 
-- \(\beta_{i}^{(\mathsf{S})}\) is the spatial effect at location \(i\),
+- \(\beta_{i}^{(\mathsf{S})}\) is the spatial effect at spatial unit \(i\),
 
 - \(\beta_{t}^{(\mathsf{T})}\) is the temporal effect at time \(t\),
 
-- \(\beta_{i,t}^{(\mathsf{ST})}\) is the interaction effect between space and time at location \(i\) and time \(t\).
+- \(\beta_{it}^{(\mathsf{ST})}\) is the interaction effect between space and time at spatial unit \(i\) and time \(t\).
 
 
 ## Bayesian Hierarchical Structure
-The Bayesian model is as follows, for $t=1, \dots, T$:
+The Bayesian model is as follows, for $t=1, \dots, T$ and $j=1, \dots, J$:
 \begin{align*}
-    y_t &\sim N(\boldsymbol{x}_t' \boldsymbol{\beta}_t + \boldsymbol{z}_t' \boldsymbol{\gamma}, \sigma_\epsilon^2) \\
-    \boldsymbol{\beta}_t &= \boldsymbol{1}_p \overline{\beta} + \boldsymbol{\beta}^{(\mathsf{S})} + \boldsymbol{1}_p \beta_{t}^{(\mathsf{T})} + \boldsymbol{\beta}_{t}^{(\mathsf{ST})} \\
+    y_{it} &\sim N(\boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma}, \sigma_\epsilon^2) \\
+    \boldsymbol{\beta}_{j,t} &= \boldsymbol{1}_p \overline{\beta}_j + \boldsymbol{\beta}_j^{(\mathsf{S})} + \boldsymbol{1}_p \beta_{j,t}^{(\mathsf{T})} + \boldsymbol{\beta}_{j,t}^{(\mathsf{ST})} \\
+    \boldsymbol{\beta_j}^{(\mathsf{S})} &= (\beta_{j,1}^{(\mathsf{S})}, \dots, \beta_{j,p}^{(\mathsf{S})})' \sim GP(0, \rho_{j,1}^{(\mathsf{S})}, \rho_{j,2}^{(\mathsf{S})}; exp) \mbox{ or } PCAR(0, \rho_{j,1}^{(\mathsf{S})}, \rho_{j,2}^{(\mathsf{S})}) \\
+    \beta_{j,t}^{(\mathsf{T})} &\sim N(\phi_j^{(\mathsf{T})} \beta_{j,t-1}^{(\mathsf{T})}, V_{\beta,j}^{(\mathsf{T})}) \\
+    \boldsymbol{\beta}_{j,t}^{(\mathsf{ST})} &= (\beta_{j,1t}^{(\mathsf{ST})}, \dots, \beta_{j,pt}^{(\mathsf{ST})})' \sim GP(\phi_j^{(\mathsf{ST})} \boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})}, \rho_{j,1}^{(\mathsf{ST})}, \rho_{j,2}^{(\mathsf{ST})}; exp) \mbox{ or } PCAR(\phi_j^{(\mathsf{ST})} \boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})}, \rho_{j,1}^{(\mathsf{ST})}, \rho_{j,2}^{(\mathsf{ST})})
+\end{align*}
+
+The model is completed with the following priors (again, dropping the subscript $j$, since these are common across $j$):
+\begin{align*}
     \overline{\beta} &\sim N(0, V_\gamma) \\
-    \boldsymbol{\beta}^{(\mathsf{S})} &= (\beta_{1}^{(\mathsf{S})}, \dots, \beta_{p}^{(\mathsf{S})})' \sim GP(0, \rho_1^{(\mathsf{S})}, \rho_2^{(\mathsf{S})}; exp) \mbox{ or } PCAR(0, \rho_1^{(\mathsf{S})}, \rho_2^{(\mathsf{S})}) \\
-    \beta_{t}^{(\mathsf{T})} &\sim N(\phi^{(\mathsf{T})} \beta_{t-1}^{(\mathsf{T})}, V_\beta^{(\mathsf{T})}) \\
-    \boldsymbol{\beta}_{t}^{(\mathsf{ST})} &= (\beta_{1,t}^{(\mathsf{ST})}, \dots, \beta_{p,t}^{(\mathsf{ST})})' \sim GP(\phi^{(\mathsf{ST})} \boldsymbol{\beta}_{t-1}^{(\mathsf{ST})}, \rho_1^{(\mathsf{ST})}, \rho_2^{(\mathsf{ST})}; exp) \mbox{ or } PCAR(\phi^{(\mathsf{ST})} \boldsymbol{\beta}_{t-1}^{(\mathsf{ST})}, \rho_1^{(\mathsf{ST})}, \rho_2^{(\mathsf{ST})}) \\
-    \boldsymbol{\gamma} &\sim N(0, V_\gamma) \\
+    \beta_{0}^{(\mathsf{T})} &\sim N(0, V_{\beta_0}) \\
+    \boldsymbol{\beta}_{0}^{(\mathsf{ST})} &\sim N_p(0, V_{\beta_0} \boldsymbol{I}_p) \\
+    \boldsymbol{\gamma} &\sim N_q(0, V_\gamma) \\
     \sigma_\epsilon^2 &\sim IG(a_\epsilon, b_\epsilon) \\
     \rho_1^{(\mathsf{S})} &\sim IG(0.01, 0.01) \\
     \rho_2^{(\mathsf{S})} &\sim U(a_\rho, b_\rho) \\
@@ -118,3 +137,42 @@ The Bayesian model is as follows, for $t=1, \dots, T$:
     V_\beta^{(\mathsf{T})} &\sim IG(a^{(\mathsf{T})}, b^{(\mathsf{T})})
 \end{align*}
 where $TN_{(q, r)}(\mu, \sigma^2)$ denotes a normal distribution with mean $\mu$ and variance $\sigma^2$ truncated to the interval $(q, r)$. The hyperparameters $a_\rho$ and $b_\rho$ depend on the type of spatial data. If the data are point-referenced, they are set based on the minimum and maximum distances between points, respectively. If the data are areal, $a_\rho= 0.1$ and $b_\rho \rightarrow 1$.
+
+Note that the spacetime-varying coefficients are assumed independent a priori across $j=1,\dots,J$.
+
+
+## Efficient Inference and Identifiability
+To build an efficient sampler, the algorithm proposed by @chan2009efficient is used in conjuction with sparse matrix techniques.
+
+To make the model identifiable, some **constraints** are imposed on the varying parameters at each MCMC iteration:
+
+- Set $\sum_{t=1}^{T} \beta_{t}^{(\mathsf{T})} = 0$.
+
+- Set $\sum_{i=1}^{p} \beta_{i}^{(\mathsf{S})} = 0$.
+
+- Set $\sum_{i=1}^{p} \beta_{i,t}^{(\mathsf{ST})} = 0$ for each $t=1,\dots,T$.
+
+- Set $\sum_{t=1}^{T} \beta_{i,t}^{(\mathsf{ST})} = 0$ for each $i=1,\dots,p$.
+
+
+# Quick Start
+
+```{r, eval=TRUE}
+
+# # Simulate data
+# set.seed(123)
+# n <- 100
+# p <- 5
+# X <- matrix(rnorm(n * p), n, p)
+# beta <- rnorm(p)
+# Y <- X %*% beta + rnorm(n)
+
+# # Fit model
+# mod <- stdglm(y=Y, X=X)
+
+# # Summarize results
+# summary(mod)
+```
+
+# References
+

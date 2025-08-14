@@ -4,3 +4,7 @@
 ^\.Rproj\.user$
 ^\.Rhistory$
 ^tools$
+^vignettes/articles$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$

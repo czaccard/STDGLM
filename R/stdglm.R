@@ -87,11 +87,11 @@ stdglm = function(y, X, Z = NULL, offset = NULL,
       stopifnot("NA not allowed in Z_pred" = !any(is.na(Z_pred)))
       Z_pred = lapply(1:ncovz, \(i) Z_pred[,,i])
     }
+    if (is.null(offset_pred)) offset_pred = matrix(0, nrow(X_pred[[1]]), ncol(X_pred[[1]]))
   } else {
     Z_pred = NULL
-    W_pred = W_cross = matrix(0, 1, 1)
+    W_pred = W_cross = offset_pred = matrix(0, 1, 1)
   }
-  if (is.null(offset_pred)) offset_pred = matrix(0, nrow(X_pred[[1]]), ncol(X_pred[[1]]))
   
   if (!(is.null(last_run) | identical(last_run, list()))) {
     out_prev = last_run$out

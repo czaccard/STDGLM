@@ -51,7 +51,7 @@ plot.stdglm <- function(x, type = 'fitted', ...) {
 #' @export
 #' 
 fitted.stdglm <- function(object, ...) {
-  return(object$ave$Ypred_mean)
+  return(object$ave$Yfitted_mean)
 }
 
 
@@ -168,11 +168,11 @@ plot_fitted = function(mod, Y, id) {
   
   df = data.frame(Time = 1:NCOL(Y),
                   Y = Y[id,],
-                  Fitted = ave$Ypred_mean[id,])
-  df = tidyr::pivot_longer(df, .data$Y:.data$Fitted, names_to = "Outcome", values_to = 'Value')
+                  Fitted = ave$Yfitted_mean[id,])
+  df = tidyr::pivot_longer(df, "Y":"Fitted", names_to = "Outcome", values_to = 'Value')
   
   gg = ggplot2::ggplot(df, ggplot2::aes(x=.data$Time)) +
-    ggplot2::geom_line(ggplot2::aes(y=.data$Value, col=.data$Outcome)) +
+    ggplot2::geom_line(ggplot2::aes(y=.data$Value, col=.data$Outcome, linetype=.data$Outcome)) +
     ggplot2::ggtitle('Observed vs. Fitted')
   return(gg)
 }
