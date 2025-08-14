@@ -1,0 +1,10 @@
+pandoc: '3.4'
+pkgdown: 2.1.3
+pkgdown_sha: ~
+articles:
+  articles/fit_simulated: fit_simulated.html
+  STDGLM: STDGLM.html
+last_built: 2025-08-14T12:59Z
+urls:
+  reference: https://czaccard.github.io/STDGLM/reference
+  article: https://czaccard.github.io/STDGLM/articles
