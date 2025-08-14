@@ -29,6 +29,7 @@ packages <- c("dplyr", "ggpubr", "coda", "sf")
 for (package in packages) {
   if (!require(package, character.only = TRUE)) {
     install.packages(package)
+    require(package, character.only = TRUE)
   }
 }
 ```
