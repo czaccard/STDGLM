@@ -19,14 +19,19 @@ ev_ = TRUE
 
 This article demonstrates how to fit a spatio-temporal dynamic generalized linear model (STDGLM) to simulated data using the `STDGLM` package. First, we load the required packages.
 
-```{r setup, eval = ev_}
+```{r, class.source = "fold-show"}
 library(STDGLM)
-library(dplyr)
-library(ggpubr)
-library(coda)
-library(sf)
 ```
 
+```{r}
+packages <- c("dplyr", "ggpubr", "coda", "sf")
+
+for (package in packages) {
+  if (!require(package, character.only = TRUE)) {
+    install.packages(package)
+  }
+}
+```
 
 # Data Generation
 
