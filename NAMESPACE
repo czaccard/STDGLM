@@ -5,6 +5,6 @@ S3method(fitted,stdglm)
 S3method(plot,stdglm)
 export(stdglm)
 importFrom(ggplot2,.data)
-
 importFrom(Rcpp, evalCpp)
 useDynLib(STDGLM, .registration = TRUE)
+importFrom(RcppParallel, RcppParallelLibs)
