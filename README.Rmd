@@ -1,30 +1,33 @@
+---
+output: github_document
+---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
 
 # STDGLM
 
 <!-- badges: start -->
-
-[![CRAN
-status](https://www.r-pkg.org/badges/version/STDGLM)](https://CRAN.R-project.org/package=STDGLM)
-[![Codecov test
-coverage](https://codecov.io/gh/czaccard/STDGLM/graph/badge.svg)](https://app.codecov.io/gh/czaccard/STDGLM)
+[![CRAN status](https://www.r-pkg.org/badges/version/STDGLM)](https://CRAN.R-project.org/package=STDGLM)
+[![Codecov test coverage](https://codecov.io/gh/czaccard/STDGLM/graph/badge.svg)](https://app.codecov.io/gh/czaccard/STDGLM)
 [![R-CMD-check](https://github.com/czaccard/STDGLM/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/czaccard/STDGLM/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-R package: Spatio-Temporal Dynamic Generalized Linear Models (STDGLM) by
-Carlo Zaccardi
 
-The `STDGLM` package provides a framework for fitting spatio-temporal
-dynamic generalized linear models. These models are useful for analyzing
-data that varies over both space and time, allowing for the
-incorporation of spatial and temporal dependencies in the modeling
-process. The package provides functions for fitting these models, as
-well as tools for visualizing and interpreting the results.
+R package: Spatio-Temporal Dynamic Generalized Linear Models (STDGLM) by Carlo Zaccardi
+
+The `STDGLM` package provides a framework for fitting spatio-temporal dynamic generalized linear models. These models are useful for analyzing data that varies over both space and time, allowing for the incorporation of spatial and temporal dependencies in the modeling process. The package provides functions for fitting these models, as well as tools for visualizing and interpreting the results.
 
 # Installation
-
-``` r
+```{r, eval=FALSE}
 if (!requireNamespace("devtools", quietly = TRUE)) {
   install.packages("devtools")
   require(devtools)
@@ -34,7 +37,7 @@ devtools::install_github("czaccard/STDGLM")
 
 # Quick Usage Example
 
-``` r
+```{r, eval=FALSE}
 data(ApuliaAQ)
 p = length(unique(ApuliaAQ$AirQualityStation)) # 51
 t = length(unique(ApuliaAQ$time))              # 365
@@ -51,15 +54,15 @@ X[,,2] = matrix(ApuliaAQ$Altitude, p, t)
 mod <- stdglm(y=y, X=X, W=W)
 ```
 
-## TO-DO
 
+## TO-DO
 - [ ] Add non-Gaussian responses
 - [ ] Add seasonal temporal effects
 - [ ] Allow for different priors for variances and ranges
 - [ ] Add bool to decide whether to save VC draws
 
+
+
 ## Changelog
-
 ### 0.0.0.9000
-
 - Initial release
