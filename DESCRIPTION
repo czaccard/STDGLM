@@ -12,6 +12,7 @@ Imports:
     dplyr,
     ggplot2,
     ggpubr,
+    Rcpp,
     RcppParallel,
     tidyr
 Suggests:
