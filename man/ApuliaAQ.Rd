@@ -7,9 +7,9 @@
 \format{
 \subsection{\code{ApuliaAQ}}{
 
-A data frame with 7,240 rows and 60 columns:
+A data frame with 18,615 rows and 19 columns:
 \describe{
-\item{AirQualityStation}{Station code}
+\item{AirQualityStation}{Unique station identifier}
 \item{time}{Date of measurement}
 \item{Longitude, Latitude}{Geographic coordinates using the WGS-84 reference system}
 \item{Altitude}{Altitude of the measurement station (m)}
@@ -36,7 +36,7 @@ ApuliaAQ
 }
 \description{
 Daily measurements of some air pollutant concentrations,
-recorded by ground-based monitoring stations in Apulia (Italy) in 2022,
+recorded by 51 ground-based monitoring stations in Apulia (Italy) in 2022,
 along with related climate variables. This is a subset of data from the GRINS AQCLIM dataset (see link below).
 }
 \keyword{datasets}

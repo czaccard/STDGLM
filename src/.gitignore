@@ -1,3 +1,6 @@
 *.o
 *.so
 *.dll
+*_back.cpp
+*_back.h
+*_back.txt

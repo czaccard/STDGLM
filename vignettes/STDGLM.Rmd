@@ -5,7 +5,6 @@ output:
     toc: true
     toc_float: true
     number_sections: true
-    code_folding: hide
   # pdf_document:
   #   latex_engine: xelatex
 bibliography: references.bib
@@ -29,9 +28,10 @@ The `STDGLM` package provides a framework for fitting spatio-temporal dynamic ge
 
 # Installation
 You can install the package from GitHub using the following command:
-```{r, eval = FALSE, class.source = "fold-show"}
+```{r, eval = FALSE}
 if (!requireNamespace("devtools", quietly = TRUE)) {
   install.packages("devtools")
+  require(devtools)
 }
 devtools::install_github("czaccard/STDGLM")
 ```
@@ -39,8 +39,27 @@ devtools::install_github("czaccard/STDGLM")
 
 Run the following command to load the package:
 
-```{r, eval = TRUE}
-# library(STDGLM)
+```{r, eval = FALSE}
+library(STDGLM)
+```
+
+
+# Quick Usage Example
+```{r, eval=FALSE}
+data(ApuliaAQ)
+p = length(unique(ApuliaAQ$AirQualityStation)) # 51
+t = length(unique(ApuliaAQ$time))              # 365
+
+# distance matrix
+W = as.matrix(dist(cbind(ApuliaAQ$Longitude[1:p], ApuliaAQ$Latitude[1:p])))
+
+# response variable: temperature
+y = matrix(ApuliaAQ$CL_t2m, p, t)
+# covariates (intercept + altitude)
+X = array(1, dim = c(p, t, 2))
+X[,,2] = matrix(ApuliaAQ$Altitude, p, t)
+
+mod <- stdglm(y=y, X=X, W=W)
 ```
 
 
@@ -155,24 +174,7 @@ To make the model identifiable, some **constraints** are imposed on the varying 
 - Set $\sum_{t=1}^{T} \beta_{i,t}^{(\mathsf{ST})} = 0$ for each $i=1,\dots,p$.
 
 
-# Quick Start
 
-```{r, eval=TRUE}
-
-# # Simulate data
-# set.seed(123)
-# n <- 100
-# p <- 5
-# X <- matrix(rnorm(n * p), n, p)
-# beta <- rnorm(p)
-# Y <- X %*% beta + rnorm(n)
-
-# # Fit model
-# mod <- stdglm(y=Y, X=X)
-
-# # Summarize results
-# summary(mod)
-```
 
 # References
 

@@ -11,16 +11,18 @@ stdglm(
   offset = NULL,
   point.referenced = TRUE,
   random.walk = FALSE,
+  blocks_indices = NULL,
   W,
   W_pred = NULL,
   W_cross = NULL,
   X_pred = NULL,
   Z_pred = NULL,
   offset_pred = NULL,
+  ncores = NULL,
   nrep = 100,
   nburn = 100,
   thin = 1,
-  print.interval = 100,
+  print.interval = 10,
   prior = NULL,
   keepY = TRUE,
   keepLogLik = TRUE,
@@ -28,7 +30,7 @@ stdglm(
 )
 }
 \arguments{
-\item{y}{Either a \emph{p}-by-\emph{t} matrix corresponding to the response variable, where \emph{p} is the number of spatial locations and \emph{t} is the number of time points.}
+\item{y}{A \emph{p}-by-\emph{t} matrix corresponding to the response variable, where \emph{p} is the number of spatial locations and \emph{t} is the number of time points. Missing values (\code{NA}) are allowed.}
 
 \item{X}{A \emph{p}-by-\emph{t}-by-\emph{ncovx} array corresponding to the covariates whose effects should vary across space and time.}
 
@@ -40,17 +42,21 @@ stdglm(
 
 \item{random.walk}{A logical indicating whether the temporal dynamic should be modeled as a random walk (TRUE) or a first-order autoregressive process (FALSE). Default is FALSE.}
 
+\item{blocks_indices}{A list of integer vectors indicating the indices of the blocks for spatial predictions. Defaults to \code{NULL}, if no predictions are needed. See details.}
+
 \item{W}{A \emph{p}-by-\emph{p} matrix corresponding to the spatial weights matrix. If \code{point.referenced} is TRUE, the distance matrix among the observed locations should be provided. If \code{point.referenced} is FALSE, the 0/1 adjacency matrix should be provided.}
 
-\item{W_pred}{A \emph{p}-by-\emph{p} matrix corresponding to the spatial weights matrix for the prediction locations. If \code{NULL}, predictions are not performed.}
+\item{W_pred}{A list with \emph{p_b}-by-\emph{p_b} matrices corresponding to the distance matrix for the prediction locations in the b-th block, for \emph{b} in \code{1:length(blocks_indices)}. If \code{NULL}, predictions are not performed.}
 
-\item{W_cross}{A \emph{p}-by-\emph{p_new} matrix corresponding to the cross spatial weights matrix between the observed and prediction locations.}
+\item{W_cross}{A list with \emph{p}-by-\emph{p_b} matrices corresponding to the cross distances between the observed and prediction locations in the b-th block.}
 
-\item{X_pred}{A \emph{p_new}-by-\emph{t_new}-by-\emph{ncovx} array corresponding to the covariates with varying coefficients for predictions, where \emph{p_new} is the number of prediction locations and \emph{t_new=t+h_ahead}, \emph{h_ahead}>=0, is the number of time points for which predictions are to be made.}
+\item{X_pred}{A \emph{p_new}-by-\emph{t_new}-by-\emph{ncovx} array corresponding to the covariates with varying coefficients for predictions, where \emph{p_new} is the total number of prediction locations and \emph{t_new=t+h_ahead}, \emph{h_ahead}>=0, is the number of time points for which predictions are to be made.}
 
 \item{Z_pred}{A \emph{p_new}-by-\emph{t_new}-by-\emph{ncovz} array corresponding to the covariates with constant coefficients for predictions. Defaults to \code{NULL}.}
 
 \item{offset_pred}{A \emph{p_new}-by-\emph{t_new} matrix corresponding to the offset term for predictions. If \code{NULL}, it is set to zero.}
+
+\item{ncores}{An integer indicating the number of cores to parallelize the spatial predictions. If \code{NULL}, it defaults to 1.}
 
 \item{nrep}{An integer indicating the number of iterations to keep after burn-in.}
 
@@ -60,21 +66,77 @@ stdglm(
 
 \item{print.interval}{An integer indicating the interval at which to print progress messages.}
 
-\item{prior}{A named list containing the hyperparameters of the model. If \code{NULL}, default non-informative hyperparameters are used. See details below.}
+\item{prior}{A named list containing the hyperparameters of the model. If \code{NULL}, default non-informative hyperparameters are used. See details.}
 
 \item{keepY}{A logical indicating whether to keep the response variable in the output. Default is TRUE.}
 
 \item{keepLogLik}{A logical indicating whether to keep the log-likelihood in the output. Default is TRUE.}
 
-\item{last_run}{An optional list containing the output from a previous run of the function, which can be used to restore the state of the sampler. Default is \code{NULL}.}
+\item{last_run}{An optional list containing the output from a previous run of the function, which can be used to restore the state of the sampler and continue the MCMC. Default is \code{NULL}.}
 }
 \value{
-A named list containing \code{out} and \code{ave}. \code{ave} stores posterior summaries, while \code{out} stores the MCMC samples.
+A named list containing \code{ave}, which stores posterior summaries, and \code{out}, which stores the MCMC samples.
+
+The posterior summaries in \code{ave} include:
+\describe{
+\item{Yfitted_mean, Yfitted2_mean}{First two moments of draws from the posterior predictive distribution for the observed data points.}
+\item{Ypred_mean, Ypred2_mean}{\emph{p_new}-by-\emph{t_new} matrices with first two moments of draws from the posterior predictive distribution for the new data points (only if out-of-sample predictions are required).}
+\item{B_postmean, B2_postmean}{First two moments of the overall effect of varying coefficients.}
+\item{Btime_postmean, Btime2_postmean}{First two moments of the temporal effect of varying coefficients.}
+\item{Bspace_postmean, Bspace2_postmean}{First two moments of the spatial effect of varying coefficients.}
+\item{Bspacetime_postmean, Bspacetime2_postmean}{First two moments of the spatio-temporal effect of varying coefficients.}
+\item{B2_c_t_s_st}{2nd moment of the varying coefficients, \eqn{\beta_{it}}.}
+\item{Btime_pred_postmean, Btime_pred2_postmean}{First two moments of the temporal effect of varying coefficients at the predicted time points.}
+\item{Bspace_pred_postmean, Bspace_pred2_postmean}{First two moments of the spatial effect of varying coefficients at the predicted spatial locations.}
+\item{Bspacetime_pred_postmean, Bspacetime_pred2_postmean}{First two moments of the spatio-temporal effect of varying coefficients at the predicted spatial locations and all time points.}
+\item{B_pred2_c_t_s_st}{2nd moment of the varying coefficients, \eqn{\beta_{it}}, at the predicted spatial locations and all time points.}
+\item{Eta_tilde_mean}{Posterior mean of the linear predictor (for non-gaussian outcomes).}
+\item{thetay_mean}{Noise-free version of Eta_tilde_mean. Note also that \code{thetay_mean = meanY1mean + meanZmean + offset}}
+\item{meanY1mean}{Contribution of covariates with varying coefficients.}
+\item{meanZmean}{Contribution of covariates with non-varying effects.}
+\item{DIC, Dbar, pD}{Deviance Information Criterion, \eqn{DIC = \bar{D} + pD}.}
+\item{WAIC, se_WAIC, pWAIC, se_pWAIC, elpd, se_elpd}{Widely Applicable Information Criterion, the penalty term, and expected log pointwise predictive density. The prefix \code{se_} denotes standard errors. See Gelman et al. (2014).}
+\item{CRPS}{Continuous Ranked Probability Score, as defined in Gschlößl & Czado (2007).}
+\item{PMCC}{Predictive model choice criterion proposed by Gelfand & Ghosh (1998).}
+\item{pvalue_*}{Bayesian p-values, see \url{https://czaccard.github.io/STDGLM/articles/model_output.html}.}
+}
+
+The MCMC chains included in \code{out} are:
+\describe{
+\item{sigma2}{Measurement error variance.}
+\item{sigma2_Btime}{A \emph{J}-by-\code{nrep} matrix with the variance of the innovation of the temporal effects for j=1,...,J. The j-th row corresponds to the temporal effect of the j-th varying coefficient.}
+\item{rho1_space, rho2_space}{\emph{J}-by-\code{nrep} matrices with spatial correlation parameters. The j-th row corresponds to the spatial effect of the j-th varying coefficient.}
+\item{rho1_spacetime, rho2_spacetime}{\emph{J}-by-\code{nrep} matrices with the correlation parameters of spatially-structured innovations in the spatio-temporal effects. The j-th row corresponds to the spatio-temporal effect of the j-th varying coefficient.}
+\item{gamma}{Regression coefficients related to the covariates with non-varying effects.}
+\item{loglik}{Pointwise log-likelihood, if \code{keepLogLik = TRUE}.}
+\item{fitted}{Draws from the posterior predictive distribution for the observed data points, if \code{keepY = TRUE}.}
+\item{Ypred}{Draws from the posterior predictive distribution for the out-of-sample data points, if \code{keepY = TRUE}.}
+\item{RMSE}{In-sample Root Mean Squared Error.}
+\item{MAE}{In-sample Mean Absolute Error.}
+\item{chi_sq_pred_, chi_sq_obs_}{Chi-square statistics (i.e., sum of squared Pearson residuals) for predicted and observed values.}
+}
+\code{out} contains also other elements needed for restarting.
 }
 \description{
-This function executes the Markov Chain Monte Carlo (MCMC) algorithm for STDGLM.
+This function executes the Markov Chain Monte Carlo (MCMC) algorithm for STDGLMs, i.e. spatio-temporal dynamic (generalized) linear models.
 }
 \details{
+At the moment, only Gaussian outcomes are supported. The fitted model has the following form:
+\deqn{y_{it} = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)}
+\deqn{\boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J}
+where \eqn{\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p}.
+
+The function allows for the decomposition of the state vector into components that can be interpreted as contributions from different sources of variability, that is:
+\deqn{\beta_{it} = \overline{\beta} + \beta_{i}^{(\mathsf{S})} + \beta_{t}^{(\mathsf{T})} + \beta_{it}^{(\mathsf{ST})}}
+where:
+\describe{
+\item{\eqn{\overline{\beta}}}{The overall mean effect.}
+\item{\eqn{\beta_{i}^{(\mathsf{S})}}}{The spatial effect for location \eqn{i}.}
+\item{\eqn{\beta_{t}^{(\mathsf{T})}}}{The temporal effect for time \eqn{t}.}
+\item{\eqn{\beta_{it}^{(\mathsf{ST})}}}{The spatio-temporal effect for location \eqn{i} and time \eqn{t}.}
+}
+See the package vignette for more details.
+
 \code{prior} must be a named list with these elements:
 \describe{
 \item{V_beta_0}{A scalar defining the prior variance for the initial state of the time-varying coefficients, related to the covariates in \code{X}.}
@@ -84,7 +146,37 @@ This function executes the Markov Chain Monte Carlo (MCMC) algorithm for STDGLM.
 \item{s2_a}{A scalar defining the inverse-gamma prior shape for the measurement error variance.}
 \item{s2_b}{A scalar defining the inverse-gamma prior rate for the measurement error variance.}
 }
+
+Out-of-sample predictions are performed only if \code{point.referenced} is \code{TRUE} and \code{W_pred} is provided. For spatial interpolation of space-varying coefficients, computations are performed block-wise. \code{blocks_indices} is a list of disjoint sets of indices specifying the block membership of each new spatial location. The b-th element of the list has \emph{p_b} new spatial locations, and the total number of new spatial locations is \emph{p_new}, given by the sum of \emph{p_b} over all blocks. \code{W_pred} and \code{W_cross} must be lists of length equal to \code{length(blocks_indices)}. To perform computations in parallel, \code{ncores} must be greater than 1. \cr
+For temporal predictions of time-varying coefficients, it suffices that \emph{t_new}>\emph{t}.
+}
+\examples{
+\dontrun{
+data(ApuliaAQ, package = "STDGLM")
+p = length(unique(ApuliaAQ$AirQualityStation)) # 51
+t = length(unique(ApuliaAQ$time))              # 365
+
+# distance matrix
+W = as.matrix(dist(cbind(ApuliaAQ$Longitude[1:p], ApuliaAQ$Latitude[1:p])))
+
+# response variable: temperature
+y = matrix(ApuliaAQ$CL_t2m, p, t)
+# covariates with spacetime-varying coefficients: intercept + altitude
+X = array(1, dim = c(p, t, 2))
+X[,,2] = matrix(ApuliaAQ$Altitude, p, t)
+
+mod <- stdglm(y=y, X=X, W=W)
+
+# Model with spacetime-varying intercept, but fixed altitude effect
+mod2 <- stdglm(y=y, X=X[,,1,drop=FALSE], Z=X[,,2,drop=FALSE], W=W)
+}
+
 }
 \references{
-insert here.
+Gelfand, A. E., & Ghosh, S. K. (1998). Model choice: a minimum posterior predictive loss approach. Biometrika, 85(1), 1-11. \cr
+Gelman, A., Carlin, J. B., Stern, H. S., & Rubin, D. B. (2014). Bayesian data analysis (3rd ed.). Chapman and Hall/CRC. \cr
+Gschlößl, S., & Czado, C. (2007). Spatial modelling of claim frequency and claim size in non-life insurance. Scandinavian Actuarial Journal, 2007(3), 202–225. \doi{10.1080/03461230701414764}
+}
+\seealso{
+\code{vignette("STDGLM")}.
 }

@@ -5,7 +5,6 @@ output:
     toc: true
     toc_float: true
     number_sections: true
-    code_folding: hide
 ---
 
 ```{r, include = FALSE}
@@ -19,12 +18,12 @@ ev_ = TRUE
 
 This article demonstrates how to fit a spatio-temporal dynamic generalized linear model (STDGLM) to simulated data using the `STDGLM` package. First, we load the required packages.
 
-```{r, class.source = "fold-show"}
+```{r}
 library(STDGLM)
 ```
 
 ```{r}
-packages <- c("dplyr", "ggpubr", "coda", "sf")
+packages <- c("dplyr", "ggplot2", "tidyr", "ggpubr", "coda", "sf")
 
 for (package in packages) {
   if (!require(package, character.only = TRUE)) {
@@ -38,12 +37,11 @@ for (package in packages) {
 
 The following chunk generates some covariates. We randomly sample $p=30$ spatial locations within the unit square. At these locations, we generate $J=3$ covariates (`X`) whose effects vary in spacetime, the first one being an intercept, and $q=1$ covariate (`z`) whose effect is held constant.
 
-```{r, eval = ev_, class.source = "fold-show"}
+```{r, eval = ev_}
 p = 30
 set.seed(123)
-coords = data.frame(x = runif(p), y = runif(p)) %>% 
-  arrange(x, y)
-dist_mat = as.matrix(dist(coords))
+coords = data.frame(x = runif(p), y = runif(p))
+D = as.matrix(dist(coords))
 t = 100
 J = 3
 X = array(1, dim = c(p, t, J))
@@ -61,10 +59,10 @@ z = array(rnorm(p*t*q), dim = c(p, t, q))
 
 Then we simulate some varying coefficients and plot them.
 
-```{r, eval = ev_, class.source = "fold-show"}
+```{r, eval = ev_}
 beta0 <- outer(
   seq(0.7, 1.5, length.out = p),
-  0*(seq(0,1,length.out = t)-0.5) - 100*(seq(0,1,length.out = t)-0.5)^2 + 30
+  -10*(seq(0,1,length.out = t)-0.5) - 50*(seq(0,1,length.out = t)-0.5)^2 + 10
 )
 
 tempo <- (1:t)
@@ -73,7 +71,7 @@ beta1 <- outer(
   sin(tempo/t*2*pi) + 3, FUN = "+"
 )
 
-beta2 = outer(
+beta2 = 4*outer(
   - .6* (coords$x-.9)^2 + 1* (coords$y-.5)^2,
   0.5*sin(tempo/t*2*pi) + 0.5*cos(tempo/t*4*pi), 
   FUN = "+"
@@ -89,8 +87,8 @@ matplot(t(beta2), type = 'l', main = 'Beta 2', xlab = 'Time')
 ```
 
 Next, we simulate the response variable `Y` using the observation equation. The observation error is assumed to be normally distributed with mean zero and variance \(\sigma_\epsilon^2 = 2\).
-```{r, eval=ev_, class.source = "fold-show"}
-gamma <- 5
+```{r, eval=ev_}
+gamma <- 1
 set.seed(42)
 eps = matrix(rnorm(p*t, sd = sqrt(2)), nrow = p, ncol = t)
 Y <- beta0 + beta1*X[,,2] + beta2*X[,,3] + gamma*z[,,1] + eps
@@ -128,20 +126,20 @@ print.interval = 50         # print message during execution of MCMC
 ```
 
 
-The following command executes the MCMC algorithm to fit the STDGLM model to the simulated data. The `stdglm` function takes the response variable `Y`, covariates `X` and `z`, and other parameters defined above. The output is an object of class `stdglm`, i.e. a list containing the MCMC samples and other posterior summaries. The output is described in a separate article.
+The following command executes the MCMC algorithm to fit the STDGLM model to the simulated data. The `stdglm` function takes the response variable `Y`, covariates `X` and `z`, and other parameters defined above. The output is an object of class `stdglm`, i.e. a list containing the MCMC samples and other posterior summaries. The output is described [in a separate article](https://czaccard.github.io/STDGLM/articles/model_output.html).
 
 ```{r, eval = ev_}
 mod <- stdglm(y=Y, X=X, Z=z, 
               point.referenced=point.referenced, 
               random.walk=random.walk, 
-              W=dist_mat,
+              W=D,
               nrep=nrep, nburn=nburn, thin=thin, 
               print.interval=print.interval, 
               prior=prior_list
 )
 ```
 
-## `fitted` and `plot` methods
+## `fitted`, `coef` and `plot` methods
 
 The `fitted` method provides the mean of the posterior predictive distribution for the observed data points. We can also `plot` the fitted values against the observed data for a specific location.
 ```{r}
@@ -164,6 +162,12 @@ g2 = plot(mod, Y=Y, id=2)
 # ggsave("plot2.png", plot = g2)
 
 ggarrange(g1, g2, labels = c("#ID 1", "#ID 2"), label.x = 0.8)
+```
+
+Posterior summaries for all the coefficients can be extracted using the `coef` method. Here we show those of constant coefficients.
+```{r}
+print(coef(mod, 'overall'))
+print(coef(mod, 'gamma'))
 ```
 
 The `plot` method can also be used to visualize the time-varying, space-varying, and spacetime-varying coefficients. The returned object is a `ggplot` object. The label "Observed" indicates that the values refer to the observed spatio-temporal data points. For time-varying and spacetime-varying coefficients, the 95\% credible intervals (CI) are within the dashed lines, whereas for the space-varying coefficients the posterior standard deviation is shown for each location.
@@ -189,12 +193,31 @@ plot(mod, 'svc', coords_sf, region)
 plot(mod, 'stvc', ids=c(1:9))
 ```
 
+The `coef` method can be used also for the varying coefficients. For example, we can compare the posterior mean of the spacetime-varying effect of `beta0` with its true value.
+
+```{r}
+st_effect_b0 = beta0 + mean(beta0) - 
+  matrix(rowMeans(beta0), nrow = nrow(beta0), ncol = ncol(beta0)) - 
+  matrix(colMeans(beta0), nrow = nrow(beta0), ncol = ncol(beta0), byrow = TRUE)
+
+beta0_post = coef(mod, 'stvc') %>%
+  filter(Coef == 'beta0') %>% 
+  mutate(Truth = as.vector(st_effect_b0)) %>%
+  filter(Space %in% 1:9) %>% 
+  select(Space:Mean, Truth) %>% 
+  pivot_longer(cols = c('Mean', 'Truth'), names_to = 'Type', values_to = 'Value')
+ggplot(beta0_post, aes(x = Time, y = Value, color = Type)) +
+  geom_line() +
+  facet_wrap(~ Space, nrow = 3) +
+  labs(title = "Posterior Mean vs Truth for beta0")
+```
+
 
 ## Trace plots
 We can also visualize the trace plots of the MCMC samples for the parameters of interest. For that purpose, we can convert the output to an `mcmc` object, then use the `plot` function from the `coda` package.
 ```{r}
 plot(mcmc(t(mod$out$sigma2))) # measurement error variance
-plot(mcmc(t(mod$out$Q1inv_time^-1))) # temporal evolution variances for j=1,...,J
+plot(mcmc(t(mod$out$sigma2_Btime))) # evolution variances of temporal effects for j=1,...,J
 plot(mcmc(t(mod$out$rho1_space))) # partial sill of spatial effects for j=1,...,J
 plot(mcmc(t(mod$out$rho2_space))) # range of spatial effects for j=1,...,J
 plot(mcmc(t(mod$out$rho1_spacetime))) # partial sill of spatio-temporal effects for j=1,...,J
@@ -214,7 +237,7 @@ The MCMC algorithm has not converged yet, however it is very easy to continue pr
 mod <- stdglm(y=Y, X=X, Z=z, 
               point.referenced=point.referenced, 
               random.walk=random.walk, 
-              W=dist_mat,
+              W=D,
               nrep=nrep, nburn=nburn, thin=thin, 
               print.interval=print.interval, 
               prior=prior_list,
@@ -224,12 +247,81 @@ mod <- stdglm(y=Y, X=X, Z=z,
 
 
 ## Model Selection and Comparison
-The `stdglm` object also contains information for model selection and comparison, including the Deviance Information Criterion (DIC), the Widely Applicable Information Criterion (WAIC), and the Continuous Ranked Probability Score (CRPS). These are all described in a separate article.
+The `stdglm` object also contains tools for model selection and comparison, including the Deviance Information Criterion (DIC), the Widely Applicable Information Criterion (WAIC), scoring rules and Bayesian *p-values*. These are all described [in a separate article](https://czaccard.github.io/STDGLM/articles/model_output.html).
 ```{r}
 print(mod$ave$DIC)
 print(mod$ave$WAIC)
-print(mod$ave$CRPS)
 ```
+
+
+# Temporal predictions and Spatial interpolation
+In this section, we will demonstrate how to perform out-of-sample predictions. We will create a grid of new spatial locations and generate new covariates for these locations. We also assume that we want to predict the next 10 time points, so we set `h_ahead = 10`. The new covariates are generated in a similar way as before, but now we have `p_new` locations and `t_new = t + h_ahead` time points.
+
+```{r}
+st_new = st_make_grid(region, what = "centers", n = c(20, 20))
+p_new = NROW(st_new)
+h_ahead = 10
+t_new = t + h_ahead
+
+coords_pred = as.data.frame(st_coordinates(st_new))
+names(coords_pred) = names(coords)
+
+Xpred = array(1, dim = c(p_new, t_new, J))
+for (j in 2:J) {
+  for (t_ in 1:t_new) {
+    set.seed(j*t_*2)
+    Xpred[, t_, j] = rnorm(p_new)
+  }
+}
+
+q=1
+set.seed(10*8)
+zpred = array(rnorm(p_new * t_new * q), dim = c(p_new, t_new, q))
+```
+
+The function `stdglm` performs spatial interpolation using a blocked structure. This is useful when the number of new spatial locations is very large. Therefore, three lists are created to store the indices of new locations (`blocks_indices`), the distance matrices for the prediction locations (`D_pred`), and the cross-distance matrices (`D_cross`). In the following code chunk, each block is made up of just one location.
+
+```{r}
+ii = floor(seq(1, p_new+1, by = 1))
+lii = length(ii)
+
+D_pred = D_cross = blocks_indices = vector('list', lii-1)
+for (i in 2:lii) {
+  Dalltemp = as.matrix(dist(rbind(coords, coords_pred[ii[i-1]:(ii[i]-1), ])))
+  D_pred[[i-1]] = unname(Dalltemp[-(1:p), -(1:p), drop=FALSE])
+  D_cross[[i-1]] = unname(Dalltemp[1:p, -(1:p), drop=FALSE])
+  blocks_indices[[i-1]] = ii[i-1]:(ii[i]-1)
+}
+```
+
+The following command fits the STDGLM model, continuing the previous run. There is also the possibility to set the number of cores for parallel processing using the `ncores` argument: if its value is greater than 1, the spatial predictions will be performed in parallel during each MCMC iteration.
+
+```{r, eval=ev_}
+mod <- stdglm(y=Y, X=X, Z=z, 
+              point.referenced=point.referenced, 
+              random.walk=random.walk, 
+              blocks_indices=blocks_indices,
+              W=D, W_pred=D_pred, W_cross=D_cross,
+              X_pred=Xpred, Z_pred=zpred,
+              ncores = 1, # Set number of cores for parallel processing
+              nrep=nrep, nburn=nburn, thin=thin, 
+              print.interval=print.interval, 
+              prior=prior_list,
+              last_run = mod
+)
+```
+
+
+The `plot` method can be used again to visualize the posterior predictive summaries (posterior mean and 95% CIs) of the varying coefficients. The observed spatio-temporal points are clearly distinguished from the predicted ones.
+
+```{r}
+plot(mod, 'tvc')
+coords_pred_sf = st_as_sf(coords_pred, coords = c("x", "y"))
+plot(mod, 'svc', coords_sf, region, coords_pred_sf)
+plot(mod, 'stvc', ids=c(1:9), pred = TRUE) # first 9 new locations
+```
+
+
 
 
 

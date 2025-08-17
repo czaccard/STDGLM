@@ -7,9 +7,9 @@
 \method{fitted}{stdglm}(object, ...)
 }
 \arguments{
-\item{object}{A \code{stdglm} object.}
+\item{object}{An \code{stdglm} object.}
 
-\item{...}{Additional arguments (not used).}
+\item{...}{Additional arguments (currently ignored).}
 }
 \value{
 A matrix of fitted values.
@@ -19,4 +19,14 @@ Extracts the fitted values from a \code{stdglm} object.
 }
 \details{
 Extracts the posterior mean of the predictive distribution for the observed data points.
+}
+\examples{
+\dontrun{
+# Assuming `mod` is a fitted stdglm object
+fitted_values <- fitted(mod)
+summary(t(fitted_values[1:5,])) # Extract temporal summaries for the first 5 locations
+}
+}
+\seealso{
+\code{\link{stdglm}}
 }

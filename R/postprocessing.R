@@ -1,6 +1,6 @@
 #' @title Plotting functions for `stdglm` objects
 #' @description Plotting functions for `stdglm` objects.
-#' @param x A `stdglm` object.
+#' @param x An `stdglm` object.
 #' @param type A character string indicating the type of plot to generate. Options are:
 #' \itemize{
 #'   \item `tvc`: Temporal effects of varying coefficients.
@@ -21,11 +21,11 @@
 #' plot(mod, type = 'stvc', 1:4)  # Plot spatio-temporal effects
 #' plot(mod, type = 'fitted', Y, 1)  # Plot fitted values
 #' }
-#' @seealso \code{\link{stdglm}} for fitting the model.
+#' @seealso \code{\link{stdglm}}
 #' 
 #' @keywords plot
+#' @importFrom ggplot2 .data
 #' 
-#' @importFrom rlang .data
 #' @export
 #'
 plot.stdglm <- function(x, type = 'fitted', ...) {
@@ -44,15 +44,106 @@ plot.stdglm <- function(x, type = 'fitted', ...) {
 
 #' @title Fitted values for `stdglm` objects
 #' @description Extracts the fitted values from a `stdglm` object.
-#' @param object A `stdglm` object.
-#' @param ... Additional arguments (not used).
+#' @param object An `stdglm` object.
+#' @param ... Additional arguments (currently ignored).
 #' @return A matrix of fitted values.
 #' @details Extracts the posterior mean of the predictive distribution for the observed data points.
+#' @seealso \code{\link{stdglm}}
+#' @examples
+#' \dontrun{
+#' # Assuming `mod` is a fitted stdglm object
+#' fitted_values <- fitted(mod)
+#' summary(t(fitted_values[1:5,])) # Extract temporal summaries for the first 5 locations
+#' }
 #' @export
 #' 
 fitted.stdglm <- function(object, ...) {
   return(object$ave$Yfitted_mean)
 }
+
+#' @title Coefficients in `stdglm` objects
+#' @description Extracts coefficients from a `stdglm` object.
+#' @param object An `stdglm` object.
+#' @param type A character string indicating the type of coefficients. Options are:
+#' \itemize{
+#'   \item `overall`: Overall effects of varying coefficients.
+#'   \item `tvc`: Temporal effects of varying coefficients.
+#'   \item `svc`: Spatial effects of varying coefficients.
+#'   \item `stvc`: Spatio-temporal effects of varying coefficients.
+#'   \item `gamma`: Effects of covariates specified in the input \code{Z} (see \code{\link{stdglm}}).
+#' }
+#' @param ... Additional arguments (currently ignored).
+#' @return A dataframe with posterior mean and 95% credible intervals.
+#' @details Extracts posterior mean and 95% credible intervals of the coefficients according to their type.
+#' @seealso \code{\link{stdglm}}
+#' @examples
+#' \dontrun{
+#' # Assuming `mod` is a fitted stdglm object
+#' print(coef(mod, 'overall'))
+#' print(coef(mod, 'gamma'))
+#' betaST_post = coef(mod, 'stvc') # returns a data.frame
+#' head(betaST_post)
+#' }
+#' @export
+#' 
+coef.stdglm <- function(object, type = 'fitted', ...) {
+  q = stats::qnorm(.975)
+  if (type == 'overall') {
+    b_overall = as.vector(object$ave$B_postmean)
+    sdb_overall = sqrt(as.vector(object$ave$B2_postmean) - b_overall^2)
+    out = data.frame(Mean=b_overall, ci_low=b_overall - q*sdb_overall, 
+                     ci_high=b_overall+q*sdb_overall)
+    return(out)
+  } else if (type == 'tvc') {
+    ncov = dim(object$ave$Btime_postmean)[3]
+    out = data.frame()
+    for (k in 1:ncov) {
+      Bmean = object$ave$Btime_postmean[1,,k]
+      Bsd = sqrt(object$ave$Btime2_postmean[1,,k] - object$ave$Btime_postmean[1,,k]^2)
+      df = data.frame(Coef= paste0('beta', k-1), Time=1:length(Bmean), 
+                      Mean=Bmean,
+                      ci_low = Bmean - q*Bsd, ci_high = Bmean + q*Bsd)
+      out = rbind(out, df)
+    }
+    return(out)
+  } else if (type == 'svc') {
+    ncov = dim(object$ave$Bspace_postmean)[3]
+    out = data.frame()
+    for (k in 1:ncov) {
+      Bmean = object$ave$Bspace_postmean[,1,k]
+      Bsd = sqrt(object$ave$Bspace2_postmean[,1,k] - object$ave$Bspace_postmean[,1,k]^2)
+      df = data.frame(Coef= paste0('beta', k-1), Time=1:length(Bmean), 
+                      Mean=Bmean,
+                      ci_low = Bmean - q*Bsd, ci_high = Bmean + q*Bsd)
+      out = rbind(out, df)
+    }
+    return(out)
+  } else if (type == 'stvc') {
+    ncov = dim(object$ave$Bspacetime_postmean)[3]
+    out = data.frame()
+    for (k in 1:ncov) {
+      Bmean = object$ave$Bspacetime_postmean[,,k]
+      Bsd = sqrt(object$ave$Bspacetime2_postmean[,,k] - object$ave$Bspacetime_postmean[,,k]^2)
+
+      df = expand.grid(Coef= paste0('beta', k-1), Space=1:NROW(Bmean), Time=1:NCOL(Bmean))
+      df$Mean=as.vector(Bmean)
+      df$ci_low = as.vector(Bmean - q*Bsd)
+      df$ci_high = as.vector(Bmean + q*Bsd)
+      out = rbind(out, df)
+    }
+    return(out)
+  } else if (type == 'gamma') {
+    gamma = rowMeans(object$out$gamma)
+    sdb_gamma = apply(object$out$gamma, 1, stats::sd)
+    out = data.frame(Mean=gamma, ci_low=gamma - q*sdb_gamma, 
+                     ci_high=gamma + q*sdb_gamma)
+    return(out)
+  } else {
+    stop("Unknown coefficient type. Use 'overall', 'tvc', 'svc', 'stvc', or 'gamma'.")
+  }
+}
+
+
 
 
 plot_tvc = function(mod) {
@@ -171,7 +262,7 @@ plot_fitted = function(mod, Y, id) {
                   Fitted = ave$Yfitted_mean[id,])
   df = tidyr::pivot_longer(df, "Y":"Fitted", names_to = "Outcome", values_to = 'Value')
   
-  gg = ggplot2::ggplot(df, ggplot2::aes(x=.data$Time)) +
+  gg = ggplot2::ggplot(df, ggplot2::aes(x=Time)) +
     ggplot2::geom_line(ggplot2::aes(y=.data$Value, col=.data$Outcome, linetype=.data$Outcome)) +
     ggplot2::ggtitle('Observed vs. Fitted')
   return(gg)

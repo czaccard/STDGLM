@@ -7,7 +7,7 @@
 \method{plot}{stdglm}(x, type = "fitted", ...)
 }
 \arguments{
-\item{x}{A \code{stdglm} object.}
+\item{x}{An \code{stdglm} object.}
 
 \item{type}{A character string indicating the type of plot to generate. Options are:
 \itemize{
@@ -40,6 +40,6 @@ plot(mod, type = 'fitted', Y, 1)  # Plot fitted values
 }
 }
 \seealso{
-\code{\link{stdglm}} for fitting the model.
+\code{\link{stdglm}}
 }
 \keyword{plot}

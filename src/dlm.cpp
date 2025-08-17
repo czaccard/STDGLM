@@ -4,6 +4,7 @@
 #define RCPPDIST_DONT_USE_ARMA
 
 #include <RcppEigen.h>
+#include <RcppParallel.h>
 #include <RcppDist.h>
 #include <algorithm>
 #include <variant>
@@ -14,9 +15,118 @@
 #include "distributions.h"
 #include "commons.h"
 #include <cmath> // For std::sqrt, std::log, std::abs
-// [[Rcpp::depends(RcppEigen,RcppDist)]]
+#include <random>
+// [[Rcpp::depends(RcppEigen, RcppParallel, RcppDist)]]
 // [[Rcpp::plugins(cpp17)]]
 
+
+inline void scatter_to_rows(Eigen::MatrixXd& dest,
+                            const std::vector<int>& rows,
+                            const Eigen::VectorXd& src,
+                            int col) {
+  for (std::size_t r = 0; r < rows.size(); ++r) dest(rows[r], col) = src[r];
+}
+
+
+
+struct SpacePredWorker : public RcppParallel::Worker {
+  // costanti
+  const int nr;
+  const int q0_idx_space;
+  const int q0_idx_st;
+  const double rho1_space_k;
+  const double rho1_st_k;
+  const double phi_st_k;
+
+  // dimensioni tempo
+  const int t_new;
+
+  // riferimenti dati condivisi (sola lettura)
+  const std::vector<std::vector<int>>& blocks_idx;                 // nblocks x (righe nel blocco)
+  const std::vector<Eigen::MatrixXd>& R_cross;                     // size = nblocks * nr (ogniuno ha dim p x p_i)
+  const std::vector<Eigen::SparseMatrix<double>>& chol_Corr_pred;  // size = nblocks * nr (p_i x p_i, lower)
+  const Eigen::VectorXd& QtB_space;                                // p x 1 = Q1inv_space_dense[k] * Bspacedraw[k]
+  const std::vector<Eigen::VectorXd>& U_t;                         // t_new elementi, ognuno p x 1 = Q1inv_st_dense[k] * delta_t
+  const std::vector<Eigen::MatrixXd>& W_pred_dense_unused;         // solo per mantenere compatib. se serve in futuro
+
+  // output condivisi (scrittura su righe disgiunte)
+  Eigen::MatrixXd& Bspace_pred_k;        // p_new x 1
+  Eigen::MatrixXd& Bst_pred_k;           // p_new x t_new
+
+  // seed base per rng deterministico (opzionale)
+  const std::uint64_t base_seed;
+
+  SpacePredWorker(int nr_,
+                  int q0_space_,
+                  int q0_st_,
+                  double rho1_space_k_,
+                  double rho1_st_k_,
+                  double phi_st_k_,
+                  int t_new_,
+                  const std::vector<std::vector<int>>& blocks_idx_,
+                  const std::vector<Eigen::MatrixXd>& R_cross_,
+                  const std::vector<Eigen::SparseMatrix<double>>& chol_Corr_pred_,
+                  const Eigen::VectorXd& QtB_space_,
+                  const std::vector<Eigen::VectorXd>& U_t_,
+                  const std::vector<Eigen::MatrixXd>& W_pred_dense_unused_,
+                  Eigen::MatrixXd& Bspace_pred_k_,
+                  Eigen::MatrixXd& Bst_pred_k_,
+                  std::uint64_t base_seed_)
+    : nr(nr_), q0_idx_space(q0_space_), q0_idx_st(q0_st_),
+      rho1_space_k(rho1_space_k_), rho1_st_k(rho1_st_k_), phi_st_k(phi_st_k_),
+      t_new(t_new_),
+      blocks_idx(blocks_idx_), R_cross(R_cross_), chol_Corr_pred(chol_Corr_pred_),
+      QtB_space(QtB_space_), U_t(U_t_), W_pred_dense_unused(W_pred_dense_unused_),
+      Bspace_pred_k(Bspace_pred_k_), Bst_pred_k(Bst_pred_k_),
+      base_seed(base_seed_) {}
+
+  void operator()(std::size_t begin, std::size_t end) {
+    for (std::size_t j = begin; j < end; ++j) {
+      const auto& rows = blocks_idx[j];
+      const int pi_new = static_cast<int>(rows.size());
+
+      // RNG locale per thread (seed deterministico da base_seed e j)
+      std::seed_seq ss{ static_cast<unsigned>(base_seed),
+                        static_cast<unsigned>(j & 0xffffffffULL),
+                        static_cast<unsigned>((j>>32) & 0xffffffffULL) };
+      std::mt19937_64 gen(ss);
+      std::normal_distribution<double> ndist(0.0, 1.0);
+
+      // --------- SPACE: mean e draw ----------
+      // mean: rho1 * R_cross^T * (Q1inv_space * Bspace)
+      const Eigen::MatrixXd& Rcx = R_cross[j*nr + q0_idx_space]; // p x pi_new
+      Eigen::VectorXd mean_space = rho1_space_k * (Rcx.transpose() * QtB_space); // pi_new
+
+      // sd: sqrt(rho1) * L  (L è lower Cholesky del covariance condizionale del blocco)
+      const auto& Lspace = chol_Corr_pred[j*nr + q0_idx_space];  // pi_new x pi_new
+      Eigen::VectorXd z_space(pi_new);
+      for (int r = 0; r < pi_new; ++r) z_space[r] = ndist(gen);
+      Eigen::VectorXd draw_space = std::sqrt(rho1_space_k) * (Lspace * z_space) + mean_space;
+
+      // scrivi su Bspace_pred_k(rows, 0)
+      scatter_to_rows(Bspace_pred_k, rows, draw_space, /*col=*/0);
+
+      // --------- SPACETIME: loop sui tempi ----------
+      // prev = 0 (come nel codice originale)
+      Eigen::VectorXd prev = Eigen::VectorXd::Zero(pi_new);
+
+      const auto& Lst = chol_Corr_pred[j*nr + q0_idx_st]; // stesso L per tutti i tempi (dipende solo dalla range)
+      for (int it = 0; it < t_new; ++it) {
+        const Eigen::MatrixXd& Rcx_st = R_cross[j*nr + q0_idx_st]; // p x pi_new (stesso indice di range)
+        // mean_t = phi * prev + rho1_st * R_cross^T * U_t[it]
+        Eigen::VectorXd mean_st = phi_st_k * prev + rho1_st_k * (Rcx_st.transpose() * U_t[it]);
+
+        Eigen::VectorXd z_st(pi_new);
+        for (int r = 0; r < pi_new; ++r) z_st[r] = ndist(gen);
+        Eigen::VectorXd draw_st = std::sqrt(rho1_st_k) * (Lst * z_st) + mean_st;
+
+        // scrivi su Bst_pred_k(rows, it)
+        scatter_to_rows(Bst_pred_k, rows, draw_st, /*col=*/it);
+        prev.swap(draw_st);
+      }
+    }
+  }
+};
 
 
 
@@ -25,12 +135,13 @@ Rcpp::List dlm_cpp(
     const Eigen::MatrixXd& Y,
     const std::vector<Eigen::MatrixXd>& X,
     const Rcpp::Nullable<Rcpp::List> Z_nullable,
-    const Eigen::MatrixXd& offset,
+    const Eigen::MatrixXd& offset, // const std::string& transfY,
     const bool& point_referenced,
     const bool& random_walk,
+    const std::vector<std::vector<int>>& blocks_indices,
     const Eigen::MatrixXd& W_dense,
-    const Eigen::MatrixXd& W_pred_dense,
-    const Eigen::MatrixXd& W_cross_dense,
+    const std::vector<Eigen::MatrixXd>& W_pred_dense,
+    const std::vector<Eigen::MatrixXd>& W_cross_dense,
     const Rcpp::Nullable<Rcpp::List> X_pred_nullable,
     const Rcpp::Nullable<Rcpp::List> Z_pred_nullable,
     const Eigen::MatrixXd& offset_pred,
@@ -48,9 +159,12 @@ Rcpp::List dlm_cpp(
     const bool& keepLogLik,
     Rcpp::Nullable<Rcpp::List> out_prev_nullable
 ) {
+  Eigen::setNbThreads(1); // Avoid double-threading (Eigen + RcppParallel)
+
   const int p = X[0].rows();
   const int t = X[0].cols();
   const int ncovx = X.size();
+  const int nblocks = blocks_indices.size();
   Eigen::VectorXd offset_vec = Eigen::Map<const Eigen::VectorXd>(offset.data(), offset.size());
   
   Eigen::SparseMatrix<double> W;
@@ -126,8 +240,8 @@ Rcpp::List dlm_cpp(
     }
   }
 
-  int p_new, t_new, h_ahead;
-  p_new = 0;
+  int nr = allowed_range.size();
+  int p_new = 0, t_new = 0, h_ahead = 0;
   Eigen::MatrixXd Z_pred_mat;
   std::vector<Eigen::MatrixXd> Btime_pred_draw(ncovx); // Time effect T-beta
   std::vector<Eigen::MatrixXd> Bspace_pred_draw(ncovx); // Space effect S-beta
@@ -165,22 +279,25 @@ Rcpp::List dlm_cpp(
     }
 
     // Initialize various matrices for predictions
-    chol_Corr.resize(Q0_dense.size());
-    chol_Corr_pred.resize(Q0_dense.size());
-    R_cross.resize(Q0_dense.size());
+    chol_Corr.resize(nr);
+    chol_Corr_pred.resize(nr * nblocks);
+    R_cross.resize(nr * nblocks);
 
-    for (unsigned int i = 0; i < Q0_dense.size(); ++i) {
+    for (int i = 0; i < nr; ++i) {
       double range = allowed_range(i);
-      Eigen::MatrixXd Rcross_i = (-W_cross_dense.array() * (1.0 / range)).exp().matrix();
-      R_cross[i] = Rcross_i;
-      Eigen::MatrixXd Rpred_i = (-W_pred_dense.array() * (1.0 / range)).exp().matrix();
-      Eigen::MatrixXd CC = Rpred_i - (Rcross_i.transpose() * Q0_dense[i]) * Rcross_i;
-      Eigen::LLT<Eigen::MatrixXd> chol_CC(CC);
-      if (chol_CC.info() != Eigen::Success) {
-        Rcpp::stop("Cholesky decomposition failed for prediction covariance matrix.");
+
+      for (int j = 0; j < nblocks; ++j) {
+        Eigen::MatrixXd Rcross_ij = (-W_cross_dense[j].array() * (1.0 / range)).exp().matrix();
+        R_cross[j*nr + i] = Rcross_ij;
+        Eigen::MatrixXd Rpred_ij = (-W_pred_dense[j].array() * (1.0 / range)).exp().matrix();
+        Eigen::MatrixXd CC = Rpred_ij - (Rcross_ij.transpose() * Q0_dense[i]) * Rcross_ij;
+        Eigen::LLT<Eigen::MatrixXd> chol_CC(CC);
+        if (chol_CC.info() != Eigen::Success) {
+          Rcpp::stop("Cholesky decomposition failed for prediction covariance matrix.");
+        }
+        Eigen::MatrixXd LCC = chol_CC.matrixL();
+        chol_Corr_pred[j*nr + i] = LCC.sparseView();
       }
-      Eigen::MatrixXd LCC = chol_CC.matrixL();
-      chol_Corr_pred[i] = LCC.sparseView();
       Eigen::LLT<Eigen::MatrixXd> chol_R0(R0[i]);
       if (chol_R0.info() != Eigen::Success) {
         Rcpp::stop("Cholesky decomposition failed for R0 matrix.");
@@ -190,15 +307,20 @@ Rcpp::List dlm_cpp(
     }
 
   }
-  
   // Handle NaNs
-  Eigen::MatrixXd Y_filled = Y;
+  Eigen::MatrixXd eta_tilde = Y;
+  // if (transfY == "sqrt") {
+  //   eta_tilde = eta_tilde.array().sqrt();
+  // }
+  // if (transfY == "log") {
+  //   eta_tilde = eta_tilde.array().log();
+  // }
   std::vector<std::pair<int, int>> nan_indices;
   std::vector<double> valid_values;
   
-  for (int i = 0; i < Y.rows(); ++i) {
-    for (int j = 0; j < Y.cols(); ++j) {
-      double val = Y(i, j);
+  for (int i = 0; i < eta_tilde.rows(); ++i) {
+    for (int j = 0; j < eta_tilde.cols(); ++j) {
+      double val = eta_tilde(i, j);
       if (std::isfinite(val)) {
         valid_values.push_back(val);
       } else {
@@ -218,14 +340,12 @@ Rcpp::List dlm_cpp(
   
   if (nan_indices.size() > 0){
 	  for (const auto& [i, j] : nan_indices) {
-		Y_filled(i, j) = R::rnorm(mean_Y_valid, std_Y_valid);
+		eta_tilde(i, j) = R::rnorm(mean_Y_valid, std_Y_valid);
 	  }
   }
-  
-  
-  Eigen::MatrixXd eta_tilde = Y_filled;
-  
-    
+
+
+
   // ST indicator
   Eigen::VectorXd ST = Eigen::VectorXd::Ones(ncovx);
   
@@ -302,8 +422,9 @@ Rcpp::List dlm_cpp(
     rho1_space_time_draw = extract_last_col(out_prev["rho1_spacetime"]);
     rho2_space_draw = extract_last_col(out_prev["rho2_space"]);
     rho2_space_time_draw = extract_last_col(out_prev["rho2_spacetime"]);
-    Q1invdraw_time = extract_last_col(out_prev["Q1inv_time"]);
-    
+    Q1invdraw_time = extract_last_col(out_prev["sigma2_Btime"]);
+    Q1invdraw_time = 1.0 / Q1invdraw_time.array();
+
     // Load s2_err_mis_draw
     {
       Rcpp::NumericMatrix s2_mat = out_prev["sigma2"];
@@ -495,7 +616,7 @@ Rcpp::List dlm_cpp(
   Eigen::MatrixXd RHO1_space_time_(ncovx, collections);
   Eigen::MatrixXd RHO2_space_(ncovx, collections);
   Eigen::MatrixXd RHO2_space_time_(ncovx, collections);
-  Eigen::MatrixXd Q1inv_time_out(ncovx, collections);
+  Eigen::MatrixXd S2_Btime_(ncovx, collections);
   Eigen::MatrixXd G_out;  // Will be resized only if ncovz > 0
   Eigen::MatrixXd PHI_AR1_time_; // Will be resized only if !random_walk
   Eigen::MatrixXd PHI_AR1_space_time_; // Will be resized only if !random_walk
@@ -911,7 +1032,7 @@ Rcpp::List dlm_cpp(
         RHO1_space_time_(k, collect_count) = rho1_space_time_draw(k);
         RHO2_space_(k, collect_count) = rho2_space_draw(k);
         RHO2_space_time_(k, collect_count) = rho2_space_time_draw(k);
-        Q1inv_time_out(k, collect_count) = Q1invdraw_time(k);
+        S2_Btime_(k, collect_count) = 1.0 / Q1invdraw_time(k);
         if (!random_walk) {
           PHI_AR1_time_(k, collect_count) = phi_ar1_time_draw(k);
           PHI_AR1_space_time_(k, collect_count) = phi_ar1_space_time_draw(k);
@@ -946,60 +1067,57 @@ Rcpp::List dlm_cpp(
             BBtimedraw[k].rightCols(h_ahead) = Btime_pred_draw[k];
           }
 
-          // SPACE PREDICTIONS (INTERPOLATION)
-          Eigen::VectorXd Bspace_pred_mean = rho1_space_draw(k) * (R_cross[q0_index_space].transpose() * Q1invdraw_space_dense[k]) * Bspacedraw[k];
-          Eigen::MatrixXd Bspace_pred_sd_mat = std::sqrt(rho1_space_draw(k)) * chol_Corr_pred[q0_index_space];
-          Bspace_pred_draw[k] = Bspace_pred_sd_mat * randn_vector(p_new) + Bspace_pred_mean;
-          /*if (!random_walk) {
-            Eigen::SparseMatrix<double> I_t_new(t_new, t_new);
-            I_t_new.setIdentity();
-            // Calculate the spatial operation matrix: (R_cross' * Q1invdraw_spacetime)
-            Eigen::MatrixXd spatial_op = rho1_space_time_draw(k) * (R_cross[q0_index_spacetime].transpose() * Q1invdraw_spacetime[k]);
+          // ----- PRECOMPUTAZIONI condivise per il covariato k -----
+          // Indici range già calcolati poco sopra:
+          //   q0_index_space, q0_index_spacetime
+          // Dati per lo spazio:
+          Eigen::VectorXd QtB_space = Q1invdraw_space_dense[k] * Bspacedraw[k]; // p x 1
 
-            // Manual Kronecker Product: I_t_new (Sparse) x spatial_op (Dense)
-            // Result is a block diagonal matrix where each block is 'spatial_op'
-            Eigen::MatrixXd kron_factor(I_t_new.rows() * spatial_op.rows(), I_t_new.cols() * spatial_op.cols());
-            kron_factor.setZero();
-            for (int r = 0; r < I_t_new.rows(); ++r) {
-                kron_factor.block(r * spatial_op.rows(), r * spatial_op.cols(), spatial_op.rows(), spatial_op.cols()) = spatial_op;
+          // Dati per lo spazio-tempo: U_t[it] = Q1inv_st_dense[k] * (Bst_k.col(i+1) - phi * Bst_k.col(i))
+          std::vector<Eigen::VectorXd> U_t(t_new);
+          {
+            Eigen::MatrixXd Bst_k_full(p, 1 + t_new);
+            Bst_k_full.col(0) = Bspacetimedraw[k].col(0);
+            Bst_k_full.rightCols(t_new) = Bspacetime_pred_obs_sites[k];
+
+            for (int i = 0; i < t_new; ++i) {
+              Eigen::VectorXd delta_i = Bst_k_full.col(i+1) - phi_ar1_space_time_draw(k) * Bst_k_full.col(i);
+              U_t[i] = Q1invdraw_spacetime_dense[k] * delta_i; // p x 1
             }
-            Eigen::Map<const Eigen::VectorXd> reshaped_Bspacetime_obs_sites(
-                Bspacetime_pred_obs_sites[k].data(), p * t_new
-            );
-            Eigen::VectorXd Bspacetime_pred_mean = kron_factor * reshaped_Bspacetime_obs_sites;
-
-            Eigen::MatrixXd ar1_corr = ar1_correlation_matrix(t_new, phi_ar1_space_time_draw(k));
-            Eigen::LLT<Eigen::MatrixXd> llt(ar1_corr); // Cholesky decomposition (lower triangular)
-            Eigen::MatrixXd chol_ar1 = llt.matrixL(); // Lower Cholesky factor
-
-            Eigen::MatrixXd spatial_sd_factor = std::sqrt(rho1_space_time_draw(k)) * chol_Corr_pred[q0_index_spacetime];
-
-            // Manual Kronecker Product: chol_ar1 (Dense) x spatial_sd_factor (Dense)
-            Eigen::MatrixXd Bspacetime_pred_sd(chol_ar1.rows() * spatial_sd_factor.rows(), chol_ar1.cols() * spatial_sd_factor.cols());
-            for (int r1 = 0; r1 < chol_ar1.rows(); ++r1) {
-                for (int c1 = 0; c1 < chol_ar1.cols(); ++c1) {
-                    Bspacetime_pred_sd.block(r1 * spatial_sd_factor.rows(), c1 * spatial_sd_factor.cols(),
-                                  spatial_sd_factor.rows(), spatial_sd_factor.cols()) = chol_ar1(r1, c1) * spatial_sd_factor;
-                }
-            }
-
-            Eigen::VectorXd reshaped_result_vec = Bspacetime_pred_sd * randn_vector(p_new * t_new) + Bspacetime_pred_mean;
-            Bspacetime_pred_draw[k] = Eigen::Map<Eigen::MatrixXd>(reshaped_result_vec.data(), p_new, t_new);
-          } else {*/
-
-          Eigen::VectorXd Bspacetime_pred_mean_tm1 = Eigen::VectorXd::Zero(p_new);
-          Eigen::MatrixXd Bspacetimedraw_k(p, 1 + t_new);
-          Bspacetimedraw_k.col(0) = Bspacetimedraw[k].col(0); // First column is the initial value
-          Bspacetimedraw_k.rightCols(t_new) = Bspacetime_pred_obs_sites[k];
-          for (int i = 0; i < t_new; ++i) {
-            Eigen::VectorXd Bspacetime_pred_mean_t =
-              phi_ar1_space_time_draw(k) * Bspacetime_pred_mean_tm1 +
-              rho1_space_time_draw(k) * (R_cross[q0_index_spacetime].transpose() * Q1invdraw_spacetime_dense[k]) *
-              (Bspacetimedraw_k.col(i + 1) - phi_ar1_space_time_draw(k) * Bspacetimedraw_k.col(i));
-            Eigen::MatrixXd Bspacetime_pred_sd_mat = std::sqrt(rho1_space_time_draw(k)) * chol_Corr_pred[q0_index_spacetime];
-            Bspacetime_pred_draw[k].col(i) = Bspacetime_pred_sd_mat * randn_vector(p_new) + Bspacetime_pred_mean_t;
-            Bspacetime_pred_mean_tm1 = Bspacetime_pred_draw[k].col(i);
           }
+
+
+          // SPACE PREDICTIONS (INTERPOLATION)
+          {
+            // Nota: se vuoi controllare i thread da R: RcppParallel::setThreadOptions(numThreads = ...)
+            // Semina deterministica per avere riproducibilità cross-thread (puoi usare collect_count, k, ecc.)
+            std::uint64_t base_seed = 0x9E3779B97F4A7C15ULL
+                                    ^ static_cast<std::uint64_t>(k) * 0xBF58476D1CE4E5B9ULL
+                                    ^ static_cast<std::uint64_t>(collect_count) * 0x94D049BB133111EBULL;
+
+            SpacePredWorker worker(
+                nr,
+                q0_index_space,
+                q0_index_spacetime,
+                rho1_space_draw(k),
+                rho1_space_time_draw(k),
+                phi_ar1_space_time_draw(k),
+                t_new,
+                blocks_indices,
+                R_cross,
+                chol_Corr_pred,
+                QtB_space,
+                U_t,
+                W_pred_dense,               // non usato qui, ma lasciato per futura estensione
+                Bspace_pred_draw[k],
+                Bspacetime_pred_draw[k],
+                base_seed
+            );
+
+            // Lancia il parallelFor sui blocchi
+            RcppParallel::parallelFor(0, nblocks, worker);
+          }
+
         }
 
         Eigen::MatrixXd meanY1_pred = Eigen::MatrixXd::Zero(p_new, t_new);
@@ -1153,20 +1271,21 @@ Rcpp::List dlm_cpp(
           + Bspacedraw[k].rowwise().replicate(t)
           + Bspacetimedraw[k];
         B2_c_t_s_st[k] += B_c_t_s_st.array().square().matrix();
-          
+        
 				// B_c_t_st: p x t
-				Eigen::MatrixXd B_c_t_st = Eigen::MatrixXd::Ones(p, t) * Bdraw[k] + Btimedraw[k].colwise().replicate(p)
-				+ Bspacetimedraw[k];
+				Eigen::MatrixXd B_c_t_st = Eigen::MatrixXd::Ones(p, t) * Bdrawk 
+          + Btimedraw[k].colwise().replicate(p)
+				  + Bspacetimedraw[k];
 				B2_c_t_st[k] += B_c_t_st.array().square().matrix();
-						
+				
 				// B_t_st: p x t
 				Eigen::MatrixXd B_t_st = Btimedraw[k].colwise().replicate(p) + Bspacetimedraw[k];
 				B2_t_st[k] += B_t_st.array().square().matrix();
-          
+        
 				// B_t_s: p x t
 				Eigen::MatrixXd B_t_s = Btimedraw[k].colwise().replicate(p) + Bspacedraw[k].rowwise().replicate(t);
 				B2_t_s[k] += B_t_s.array().square().matrix();
-          
+        
 				// B_t_s_st: p x t
 				Eigen::MatrixXd B_t_s_st = Btimedraw[k].colwise().replicate(p)
 					+ Bspacedraw[k].rowwise().replicate(t)
@@ -1182,19 +1301,18 @@ Rcpp::List dlm_cpp(
 				// B_s_st: p x t
 				Eigen::MatrixXd B_s_st = Bspacedraw[k].rowwise().replicate(t) + Bspacetimedraw[k];
 				B2_s_st[k] += B_s_st.array().square().matrix();
-					
+				
 				// B_c_s_st: p x t
 				Eigen::MatrixXd B_c_s_st = Eigen::MatrixXd::Ones(p, t) * Bdrawk
 				+ Bspacedraw[k].rowwise().replicate(t)
 					+ Bspacetimedraw[k];
 				B2_c_s_st[k] += B_c_s_st.array().square().matrix();
-					
+				
 				// Interactions
 				E_t_s[k] += (Btimedraw[k].colwise().replicate(p).array() * Bspacedraw[k].rowwise().replicate(t).array()).matrix();
 				E_t_st[k] += (Btimedraw[k].colwise().replicate(p).array() * Bspacetimedraw[k].array()).matrix();
 				E_s_st[k] += (Bspacedraw[k].rowwise().replicate(t).array() * Bspacetimedraw[k].array()).matrix();
       }
-      
       
       
       collect_count++;
@@ -1317,7 +1435,7 @@ Rcpp::List dlm_cpp(
   out_results["rho1_spacetime"] = RHO1_space_time_;
   out_results["rho2_space"] = RHO2_space_;
   out_results["rho2_spacetime"] = RHO2_space_time_;
-  out_results["Q1inv_time"] = Q1inv_time_out;
+  out_results["sigma2_Btime"] = S2_Btime_;
   if (!random_walk) {
     out_results["phi_AR1_time"] = PHI_AR1_time_;
     out_results["phi_AR1_spacetime"] = PHI_AR1_space_time_;
