@@ -4,7 +4,7 @@
 \alias{coef.stdglm}
 \title{Coefficients in \code{stdglm} objects}
 \usage{
-\method{coef}{stdglm}(object, type = "fitted", ...)
+\method{coef}{stdglm}(object, type = "overall", ...)
 }
 \arguments{
 \item{object}{An \code{stdglm} object.}
@@ -24,7 +24,7 @@
 A dataframe with posterior mean and 95\% credible intervals.
 }
 \description{
-Extracts coefficients from a \code{stdglm} object.
+Extracts coefficients from an \code{stdglm} object.
 }
 \details{
 Extracts posterior mean and 95\% credible intervals of the coefficients according to their type.

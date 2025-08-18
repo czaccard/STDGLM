@@ -7,7 +7,8 @@
 
 [![CRAN
 status](https://www.r-pkg.org/badges/version/STDGLM)](https://CRAN.R-project.org/package=STDGLM)
-<!-- [![Codecov test coverage](https://codecov.io/gh/czaccard/STDGLM/graph/badge.svg)](https://app.codecov.io/gh/czaccard/STDGLM) -->
+[![Codecov test
+coverage](https://codecov.io/gh/czaccard/STDGLM/graph/badge.svg)](https://app.codecov.io/gh/czaccard/STDGLM)
 [![R-CMD-check](https://github.com/czaccard/STDGLM/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/czaccard/STDGLM/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 

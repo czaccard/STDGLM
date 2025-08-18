@@ -21,7 +21,7 @@
 #' plot(mod, type = 'stvc', 1:4)  # Plot spatio-temporal effects
 #' plot(mod, type = 'fitted', Y, 1)  # Plot fitted values
 #' }
-#' @seealso \code{\link{stdglm}}
+#' @seealso \code{\link{stdglm}}, \code{\link[ggplot2]{ggplot}}
 #' 
 #' @keywords plot
 #' @importFrom ggplot2 .data
@@ -43,7 +43,7 @@ plot.stdglm <- function(x, type = 'fitted', ...) {
 }
 
 #' @title Fitted values for `stdglm` objects
-#' @description Extracts the fitted values from a `stdglm` object.
+#' @description Extracts the fitted values from an `stdglm` object.
 #' @param object An `stdglm` object.
 #' @param ... Additional arguments (currently ignored).
 #' @return A matrix of fitted values.
@@ -61,8 +61,111 @@ fitted.stdglm <- function(object, ...) {
   return(object$ave$Yfitted_mean)
 }
 
+#' @title Retrieve predictions for `stdglm` objects
+#' @description Extracts out-of-sample predictions from an `stdglm` object.
+#' @param object An `stdglm` object.
+#' @param type A character string indicating the type of coefficients. Options are:
+#' \itemize{
+#'   \item `response_mat`: Posterior mean of the predictive distribution for the response variable. Returns a \emph{p_new}-by-\emph{t_new} matrix (default).
+#'   \item `response_df`: Mean, standard deviation and 95 % credible interval for the response variable (default). Returns a dataframe.
+#'   \item `tvc`: Mean, standard deviation and 95 % credible interval for the temporal effects of varying coefficients.
+#'   \item `svc`: Mean, standard deviation and 95 % credible interval for the spatial effects of varying coefficients.
+#'   \item `stvc`: Mean, standard deviation and 95 % credible interval for the spatio-temporal effects of varying coefficients.
+#' }
+#' @param Coo_sf_pred A simple feature object from package `sf` with the prediction points, whose geometry is used for spatial effects (optional).
+#' @param ... Additional arguments (currently ignored).
+#' @return Either a matrix or a dataframe or an `sf` object with posterior mean and 95% credible interval bounds. The function returns \code{NULL} if predictions are not available in the `stdglm` object.
+#' @details Returns the posterior mean of the predictive distribution and the associated 95% credible intervals for the out-of-sample data points, and for the random variable specified in the input \code{type}.
+#' @seealso \code{\link{stdglm}}, \code{\link[sf]{sf}}
+#' @examples
+#' \dontrun{
+#' # Assuming `mod` is a fitted stdglm object
+#' predictions <- predict(mod)
+#' colMeans(predictions) # Get the average predictions across all locations
+#' pred_df <- predict(mod, type = 'response_df')
+#' head(pred_df)
+#' }
+#' @export
+#' 
+predict.stdglm <- function(object, type = 'response_mat', Coo_sf_pred=NULL, ...) {
+  q = stats::qnorm(.975)
+  if (is.null(object$ave$Ypred_mean)) {
+    warning("No predictions available in the stdglm object. Please ensure the model was fitted with out-of-sample predictions.")
+    return(NULL)
+  }
+
+  if (type == 'response_mat') {
+    return(object$ave$Ypred_mean)
+  } else if (type == 'response_df') {
+    Ypred_mean = object$ave$Ypred_mean
+    Ypred_sd = sqrt(object$ave$Ypred2_mean - Ypred_mean^2)
+    out = expand.grid(Space=1:NROW(Ypred_mean), Time=1:NCOL(Ypred_mean))
+    out$Mean=as.vector(Ypred_mean)
+    out$sd=as.vector(Ypred_sd)
+    out$ci_low = as.vector(Ypred_mean - q*Ypred_sd)
+    out$ci_high = as.vector(Ypred_mean + q*Ypred_sd)
+    if (!is.null(Coo_sf_pred)) {
+      # Add spatial coordinates to the output
+      out$geometry = rep(sf::st_geometry(Coo_sf_pred), NCOL(Ypred_mean))
+      out = sf::st_as_sf(out)
+    }
+    return(out)
+  } else if (type == 'tvc') {
+    ncov = dim(object$ave$Btime_pred_postmean)[3]
+    out = data.frame()
+    for (k in 1:ncov) {
+      Bmean = object$ave$Btime_pred_postmean[1,,k]
+      Bsd = sqrt(object$ave$Btime_pred2_postmean[1,,k] - object$ave$Btime_pred_postmean[1,,k]^2)
+      df = data.frame(Coef= paste0('beta', k-1), steps_ahead=1:length(Bmean), 
+                      Mean=Bmean, sd = Bsd,
+                      ci_low = Bmean - q*Bsd, ci_high = Bmean + q*Bsd)
+      out = rbind(out, df)
+    }
+    return(out)
+  } else if (type == 'svc') {
+    ncov = dim(object$ave$Bspace_pred_postmean)[3]
+    out = data.frame()
+    for (k in 1:ncov) {
+      Bmean = object$ave$Bspace_pred_postmean[,1,k]
+      Bsd = sqrt(object$ave$Bspace_pred2_postmean[,1,k] - object$ave$Bspace_pred_postmean[,1,k]^2)
+      df = data.frame(Coef= paste0('beta', k-1), Space=1:length(Bmean), 
+                      Mean=Bmean, sd = Bsd,
+                      ci_low = Bmean - q*Bsd, ci_high = Bmean + q*Bsd)
+      out = rbind(out, df)
+    }
+    if (!is.null(Coo_sf_pred)) {
+      # Add spatial coordinates to the output
+      out$geometry = rep(sf::st_geometry(Coo_sf_pred), ncov)
+      out = sf::st_as_sf(out)
+    }
+    return(out)
+  } else if (type == 'stvc') {
+    ncov = dim(object$ave$Bspacetime_pred_postmean)[3]
+    out = data.frame()
+    for (k in 1:ncov) {
+      Bmean = object$ave$Bspacetime_pred_postmean[,,k]
+      Bsd = sqrt(object$ave$Bspacetime_pred2_postmean[,,k] - object$ave$Bspacetime_pred_postmean[,,k]^2)
+
+      df = expand.grid(Coef= paste0('beta', k-1), Space=1:NROW(Bmean), Time=1:NCOL(Bmean))
+      df$Mean=as.vector(Bmean)
+      df$sd = as.vector(Bsd)
+      df$ci_low = as.vector(Bmean - q*Bsd)
+      df$ci_high = as.vector(Bmean + q*Bsd)
+      out = rbind(out, df)
+    }
+    if (!is.null(Coo_sf_pred)) {
+      # Add spatial coordinates to the output
+      out$geometry = rep(sf::st_geometry(Coo_sf_pred), ncov*NCOL(Bmean))
+      out = sf::st_as_sf(out)
+    }
+    return(out)
+  } else {
+    stop("Unknown prediction type. Use 'response_mat', 'response_df', 'tvc', 'svc', or 'stvc'.")
+  }
+}
+
 #' @title Coefficients in `stdglm` objects
-#' @description Extracts coefficients from a `stdglm` object.
+#' @description Extracts coefficients from an `stdglm` object.
 #' @param object An `stdglm` object.
 #' @param type A character string indicating the type of coefficients. Options are:
 #' \itemize{
@@ -86,7 +189,7 @@ fitted.stdglm <- function(object, ...) {
 #' }
 #' @export
 #' 
-coef.stdglm <- function(object, type = 'fitted', ...) {
+coef.stdglm <- function(object, type = 'overall', ...) {
   q = stats::qnorm(.975)
   if (type == 'overall') {
     b_overall = as.vector(object$ave$B_postmean)
@@ -112,7 +215,7 @@ coef.stdglm <- function(object, type = 'fitted', ...) {
     for (k in 1:ncov) {
       Bmean = object$ave$Bspace_postmean[,1,k]
       Bsd = sqrt(object$ave$Bspace2_postmean[,1,k] - object$ave$Bspace_postmean[,1,k]^2)
-      df = data.frame(Coef= paste0('beta', k-1), Time=1:length(Bmean), 
+      df = data.frame(Coef= paste0('beta', k-1), Space=1:length(Bmean), 
                       Mean=Bmean,
                       ci_low = Bmean - q*Bsd, ci_high = Bmean + q*Bsd)
       out = rbind(out, df)

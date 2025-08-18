@@ -3,6 +3,7 @@
 S3method(coef,stdglm)
 S3method(fitted,stdglm)
 S3method(plot,stdglm)
+S3method(predict,stdglm)
 export(stdglm)
 importFrom(ggplot2,.data)
 importFrom(Rcpp, evalCpp)

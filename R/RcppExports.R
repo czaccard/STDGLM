@@ -2,6 +2,6 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 dlm_cpp <- function(Y, X, Z_nullable, offset, point_referenced, random_walk, blocks_indices, W_dense, W_pred_dense, W_cross_dense, X_pred_nullable, Z_pred_nullable, offset_pred, nrep, nburn, thin, print_interval, V_beta_0, V_gamma, a1, b1, s2_a, s2_b, keepY, keepLogLik, out_prev_nullable) {
-    .Call('_STDGLM_dlm_cpp', PACKAGE = 'STDGLM', Y, X, Z_nullable, offset, point_referenced, random_walk, blocks_indices, W_dense, W_pred_dense, W_cross_dense, X_pred_nullable, Z_pred_nullable, offset_pred, nrep, nburn, thin, print_interval, V_beta_0, V_gamma, a1, b1, s2_a, s2_b, keepY, keepLogLik, out_prev_nullable)
+    .Call(`_STDGLM_dlm_cpp`, Y, X, Z_nullable, offset, point_referenced, random_walk, blocks_indices, W_dense, W_pred_dense, W_cross_dense, X_pred_nullable, Z_pred_nullable, offset_pred, nrep, nburn, thin, print_interval, V_beta_0, V_gamma, a1, b1, s2_a, s2_b, keepY, keepLogLik, out_prev_nullable)
 }
 

@@ -15,7 +15,7 @@
 A matrix of fitted values.
 }
 \description{
-Extracts the fitted values from a \code{stdglm} object.
+Extracts the fitted values from an \code{stdglm} object.
 }
 \details{
 Extracts the posterior mean of the predictive distribution for the observed data points.

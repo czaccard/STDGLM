@@ -40,6 +40,6 @@ plot(mod, type = 'fitted', Y, 1)  # Plot fitted values
 }
 }
 \seealso{
-\code{\link{stdglm}}
+\code{\link{stdglm}}, \code{\link[ggplot2]{ggplot}}
 }
 \keyword{plot}
