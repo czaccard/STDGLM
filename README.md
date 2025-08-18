@@ -7,8 +7,7 @@
 
 [![CRAN
 status](https://www.r-pkg.org/badges/version/STDGLM)](https://CRAN.R-project.org/package=STDGLM)
-[![Codecov test
-coverage](https://codecov.io/gh/czaccard/STDGLM/graph/badge.svg)](https://app.codecov.io/gh/czaccard/STDGLM)
+<!-- [![Codecov test coverage](https://codecov.io/gh/czaccard/STDGLM/graph/badge.svg)](https://app.codecov.io/gh/czaccard/STDGLM) -->
 [![R-CMD-check](https://github.com/czaccard/STDGLM/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/czaccard/STDGLM/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
@@ -57,9 +56,3 @@ mod <- stdglm(y=y, X=X, W=W)
 - [ ] Add seasonal temporal effects
 - [ ] Allow for different priors for variances and ranges
 - [ ] Add bool to decide whether to save VC draws
-
-## Changelog
-
-### 0.0.0.9000
-
-- Initial release
