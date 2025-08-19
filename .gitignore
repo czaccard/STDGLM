@@ -7,5 +7,5 @@
 inst/doc
 .Renviron
 docs
-*.png
-*.svg
+STDGLM_hex_600dpi.png
+STDGLM_hex.svg
