@@ -7,3 +7,5 @@
 inst/doc
 .Renviron
 docs
+*.png
+*.svg

@@ -1,14 +1,13 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# STDGLM
+# STDGLM <a href="https://czaccard.github.io/STDGLM/"><img src="man/figures/logo.png" align="right" height="139" alt="STDGLM website" /></a>
 
 <!-- badges: start -->
 
 [![CRAN
 status](https://www.r-pkg.org/badges/version/STDGLM)](https://CRAN.R-project.org/package=STDGLM)
-[![Codecov test
-coverage](https://codecov.io/gh/czaccard/STDGLM/graph/badge.svg)](https://app.codecov.io/gh/czaccard/STDGLM)
+<!-- [![Codecov test coverage](https://codecov.io/gh/czaccard/STDGLM/graph/badge.svg)](https://app.codecov.io/gh/czaccard/STDGLM) -->
 [![R-CMD-check](https://github.com/czaccard/STDGLM/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/czaccard/STDGLM/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
