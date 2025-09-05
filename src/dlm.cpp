@@ -14,8 +14,11 @@
 #include "spatial_exp.h"
 #include "distributions.h"
 #include "commons.h"
+#include "bspline.h"
+#include "augmented_data_poisson.h"
 #include <cmath> // For std::sqrt, std::log, std::abs
 #include <random>
+#include <limits>
 // [[Rcpp::depends(RcppEigen, RcppParallel, RcppDist)]]
 // [[Rcpp::plugins(cpp17)]]
 
@@ -48,6 +51,7 @@ struct SpacePredWorker : public RcppParallel::Worker {
   const Eigen::VectorXd& QtB_space;                                // p x 1 = Q1inv_space_dense[k] * Bspacedraw[k]
   const std::vector<Eigen::VectorXd>& U_t;                         // t_new elementi, ognuno p x 1 = Q1inv_st_dense[k] * delta_t
   const std::vector<Eigen::MatrixXd>& W_pred_dense_unused;         // solo per mantenere compatib. se serve in futuro
+  const double& ST_k;
 
   // output condivisi (scrittura su righe disgiunte)
   Eigen::MatrixXd& Bspace_pred_k;        // p_new x 1
@@ -69,6 +73,7 @@ struct SpacePredWorker : public RcppParallel::Worker {
                   const Eigen::VectorXd& QtB_space_,
                   const std::vector<Eigen::VectorXd>& U_t_,
                   const std::vector<Eigen::MatrixXd>& W_pred_dense_unused_,
+                  const double& ST_k_,
                   Eigen::MatrixXd& Bspace_pred_k_,
                   Eigen::MatrixXd& Bst_pred_k_,
                   std::uint64_t base_seed_)
@@ -77,6 +82,7 @@ struct SpacePredWorker : public RcppParallel::Worker {
       t_new(t_new_),
       blocks_idx(blocks_idx_), R_cross(R_cross_), chol_Corr_pred(chol_Corr_pred_),
       QtB_space(QtB_space_), U_t(U_t_), W_pred_dense_unused(W_pred_dense_unused_),
+      ST_k(ST_k_),
       Bspace_pred_k(Bspace_pred_k_), Bst_pred_k(Bst_pred_k_),
       base_seed(base_seed_) {}
 
@@ -108,21 +114,23 @@ struct SpacePredWorker : public RcppParallel::Worker {
 
       // --------- SPACETIME: loop sui tempi ----------
       // prev = 0 (come nel codice originale)
-      Eigen::VectorXd prev = Eigen::VectorXd::Zero(pi_new);
+      if (ST_k == 1.0) {
+        Eigen::VectorXd prev = Eigen::VectorXd::Zero(pi_new);
 
-      const auto& Lst = chol_Corr_pred[j*nr + q0_idx_st]; // stesso L per tutti i tempi (dipende solo dalla range)
-      for (int it = 0; it < t_new; ++it) {
-        const Eigen::MatrixXd& Rcx_st = R_cross[j*nr + q0_idx_st]; // p x pi_new (stesso indice di range)
-        // mean_t = phi * prev + rho1_st * R_cross^T * U_t[it]
-        Eigen::VectorXd mean_st = phi_st_k * prev + rho1_st_k * (Rcx_st.transpose() * U_t[it]);
+        const auto& Lst = chol_Corr_pred[j*nr + q0_idx_st]; // stesso L per tutti i tempi (dipende solo dalla range)
+        for (int it = 0; it < t_new; ++it) {
+          const Eigen::MatrixXd& Rcx_st = R_cross[j*nr + q0_idx_st]; // p x pi_new (stesso indice di range)
+          // mean_t = phi * prev + rho1_st * R_cross^T * U_t[it]
+          Eigen::VectorXd mean_st = phi_st_k * prev + rho1_st_k * (Rcx_st.transpose() * U_t[it]);
 
-        Eigen::VectorXd z_st(pi_new);
-        for (int r = 0; r < pi_new; ++r) z_st[r] = ndist(gen);
-        Eigen::VectorXd draw_st = std::sqrt(rho1_st_k) * (Lst * z_st) + mean_st;
+          Eigen::VectorXd z_st(pi_new);
+          for (int r = 0; r < pi_new; ++r) z_st[r] = ndist(gen);
+          Eigen::VectorXd draw_st = std::sqrt(rho1_st_k) * (Lst * z_st) + mean_st;
 
-        // scrivi su Bst_pred_k(rows, it)
-        scatter_to_rows(Bst_pred_k, rows, draw_st, /*col=*/it);
-        prev.swap(draw_st);
+          // scrivi su Bst_pred_k(rows, it)
+          scatter_to_rows(Bst_pred_k, rows, draw_st, /*col=*/it);
+          prev.swap(draw_st);
+        }
       }
     }
   }
@@ -132,12 +140,14 @@ struct SpacePredWorker : public RcppParallel::Worker {
 
 // [[Rcpp::export]]
 Rcpp::List dlm_cpp(
-    const Eigen::MatrixXd& Y,
+    Eigen::MatrixXd Y,
+    const std::string& family,
     const std::vector<Eigen::MatrixXd>& X,
     const Rcpp::Nullable<Rcpp::List> Z_nullable,
     const Eigen::MatrixXd& offset, // const std::string& transfY,
     const bool& point_referenced,
     const bool& random_walk,
+    const Eigen::VectorXd& ST, // ST interaction effect indicator
     const std::vector<std::vector<int>>& blocks_indices,
     const Eigen::MatrixXd& W_dense,
     const std::vector<Eigen::MatrixXd>& W_pred_dense,
@@ -149,12 +159,17 @@ Rcpp::List dlm_cpp(
     const int& nburn,
     const int& thin,
 	  const int& print_interval,
-    const double& V_beta_0,		  // Prior variance of initial state
+    const Eigen::VectorXd& V_beta_0,		  // Prior variance of initial state
     const double& V_gamma,		  // Prior variance of constant coefficients
-    const double& a1,
-    const double& b1,
-    const double& s2_a,
-    const double& s2_b,
+    const Eigen::VectorXd& a_inn_time,
+    const Eigen::VectorXd& b_inn_time,
+    const Eigen::VectorXd& a_rho1s,
+    const Eigen::VectorXd& b_rho1s,
+    const Eigen::VectorXd& a_rho1st,
+    const Eigen::VectorXd& b_rho1st,
+    const double& a_s2,
+    const double& b_s2,
+    const double& ctuning,
     const bool& keepY,
     const bool& keepLogLik,
     Rcpp::Nullable<Rcpp::List> out_prev_nullable
@@ -165,7 +180,7 @@ Rcpp::List dlm_cpp(
   const int t = X[0].cols();
   const int ncovx = X.size();
   const int nblocks = blocks_indices.size();
-  Eigen::VectorXd offset_vec = Eigen::Map<const Eigen::VectorXd>(offset.data(), offset.size());
+  const Eigen::VectorXd offset_vec = Eigen::Map<const Eigen::VectorXd>(offset.data(), offset.size());
   
   Eigen::SparseMatrix<double> W;
   Eigen::SparseMatrix<double> D(p, p);
@@ -222,7 +237,8 @@ Rcpp::List dlm_cpp(
     phi_ar1_time_draw = Eigen::VectorXd::Constant(ncovx, 0.5);
     phi_ar1_space_time_draw = Eigen::VectorXd::Constant(ncovx, 0.5);
   }
-  
+  phi_ar1_space_time_draw.array() *= ST.array();
+
   Eigen::MatrixXd Z_mat;
   int ncovz = 0;
   
@@ -307,47 +323,64 @@ Rcpp::List dlm_cpp(
     }
 
   }
+  
+  Eigen::MatrixXd eta_tilde(p, t);
+  if (family == "gaussian") {
+    // Gaussian family: log link function
+    eta_tilde = Y;
+    // if (transfY == "sqrt") {
+    //   eta_tilde = eta_tilde.array().sqrt();
+    // }
+    // if (transfY == "log") {
+    //   eta_tilde = eta_tilde.array().log();
+    // }
+  } else if (family == "poisson") {
+    // Poisson family: log link function
+    eta_tilde = (0.5 + Y.array()).log();
+  } else if (family == "bernoulli") {
+    // Bernoulli family: logit link function
+    eta_tilde = logit(((Y.array() + 0.5) / 2.0).matrix());
+  } else {
+    Rcpp::stop("Unsupported family: " + family);
+  }
+
   // Handle NaNs
-  Eigen::MatrixXd eta_tilde = Y;
-  // if (transfY == "sqrt") {
-  //   eta_tilde = eta_tilde.array().sqrt();
-  // }
-  // if (transfY == "log") {
-  //   eta_tilde = eta_tilde.array().log();
-  // }
-  std::vector<std::pair<int, int>> nan_indices;
-  std::vector<double> valid_values;
+  std::vector<std::pair<int, int>> nan_indices, valid_indices;
+  double mean_Y_valid = 0.0, std_Y_valid = 1.0, sum = 0.0, sq_sum = 0.0;
   
   for (int i = 0; i < eta_tilde.rows(); ++i) {
     for (int j = 0; j < eta_tilde.cols(); ++j) {
       double val = eta_tilde(i, j);
       if (std::isfinite(val)) {
-        valid_values.push_back(val);
+        valid_indices.emplace_back(i, j);
+        sum += val;
+        sq_sum += val * val;
       } else {
         nan_indices.emplace_back(i, j);
       }
     }
   }
-  int n_obs = p * t - nan_indices.size();
-  
-  double mean_Y_valid = 0.0, std_Y_valid = 1.0;
-  if (!valid_values.empty()) {
-    double sum = std::accumulate(valid_values.begin(), valid_values.end(), 0.0);
-    mean_Y_valid = sum / valid_values.size();
-    double sq_sum = std::inner_product(valid_values.begin(), valid_values.end(), valid_values.begin(), 0.0);
-    std_Y_valid = std::sqrt(sq_sum / valid_values.size() - mean_Y_valid * mean_Y_valid);
+  int n_obs = valid_indices.size();
+
+
+  if (n_obs > 0) {
+    mean_Y_valid = sum / n_obs;
+    std_Y_valid = std::sqrt(sq_sum / n_obs - mean_Y_valid * mean_Y_valid);
+  } else {
+    Rcpp::stop("No valid observations found.");
   }
   
-  if (nan_indices.size() > 0){
-	  for (const auto& [i, j] : nan_indices) {
-		eta_tilde(i, j) = R::rnorm(mean_Y_valid, std_Y_valid);
-	  }
+  for (const auto& [i, j] : nan_indices) {
+    eta_tilde(i, j) = R::rnorm(mean_Y_valid, std_Y_valid);
+    if (family == "poisson") {
+      Y(i, j) = R::rpois(std::exp(eta_tilde(i, j)));
+    } else if (family == "bernoulli") {
+      double pr_y1 = 1.0 - R::pnorm(- eta_tilde(i, j), 0.0, 1.0, true, false);
+      Y(i, j) = R::rbinom(1, pr_y1);
+    }
   }
 
 
-
-  // ST indicator
-  Eigen::VectorXd ST = Eigen::VectorXd::Ones(ncovx);
   
   // --- Initialization ---
   bool restart = !out_prev_nullable.isNull();
@@ -369,23 +402,22 @@ Rcpp::List dlm_cpp(
   
   // Z coefficients and covariate contributions
   Eigen::VectorXd gamma_draw; // Will be resized later if ncovz > 0
-  Eigen::MatrixXd meanZ = Eigen::MatrixXd::Zero(p, t); // Contribution of Z covariates
+  Eigen::MatrixXd meanZ; // Contribution of Z covariates
+  Eigen::VectorXd Zgamma = Eigen::VectorXd::Zero(p * t);
+  Eigen::VectorXd Xbdraw = Eigen::VectorXd::Zero(p * t); // Contribution of X covariates
   
-  Eigen::VectorXd eta_tilde_vec = Eigen::Map<const Eigen::VectorXd>(eta_tilde.data(), eta_tilde.size());
-  Eigen::VectorXd Zgamma = Eigen::Map<const Eigen::VectorXd>(meanZ.data(), meanZ.size());
+  // other stuff
+  Eigen::MatrixXd pswitch_Y = Eigen::MatrixXd::Zero(p, t);
+  Eigen::VectorXd eta_tilde_vec = Eigen::Map<Eigen::VectorXd>(eta_tilde.data(), eta_tilde.size());
 
-  // Reshape X into (p*t) x ncovx
-  Eigen::MatrixXd X_reshaped(p * t, ncovx);
+  // Reshape X into (p*t) x ncovx and add Z if present
+  Eigen::MatrixXd X_reg(p * t, ncovz + ncovx);
+  if (ncovz > 0) {
+    X_reg.leftCols(ncovz) = Z_mat;
+  }
   for (int k = 0; k < ncovx; ++k) {
     Eigen::Map<const Eigen::VectorXd> x_vec(X[k].data(), X[k].size());
-    X_reshaped.col(k) = x_vec;
-  }
-  Eigen::MatrixXd X_reg;
-  if (ncovz > 0) {
-    X_reg.resize(p * t, ncovz + ncovx);
-    X_reg << Z_mat, X_reshaped;
-  } else {
-    X_reg = X_reshaped;
+    X_reg.col(ncovz + k) = x_vec;
   }
 
   if (restart) {
@@ -435,7 +467,7 @@ Rcpp::List dlm_cpp(
     {
       Rcpp::NumericMatrix eta_mat = out_prev["eta_tilde"];
       eta_tilde = Rcpp::as<Eigen::MatrixXd>(eta_mat);
-      eta_tilde_vec = Eigen::Map<const Eigen::VectorXd>(eta_tilde.data(), eta_tilde.size());
+      eta_tilde_vec = Eigen::Map<Eigen::VectorXd>(eta_tilde.data(), eta_tilde.size());
     }
     
     // Load gamma_draw and meanZ if ncovz > 0
@@ -443,8 +475,8 @@ Rcpp::List dlm_cpp(
       Rcpp::NumericMatrix G_mat = out_prev["gamma"];
       gamma_draw = extract_last_col(G_mat);
       
-      Eigen::VectorXd Zgamma = Z_mat * gamma_draw;
-      meanZ = Eigen::Map<const Eigen::MatrixXd>(Zgamma.data(), p, t);
+      Zgamma = Z_mat * gamma_draw;
+      meanZ = Eigen::Map<Eigen::MatrixXd>(Zgamma.data(), p, t);
     }
     
     // Load Bdraw
@@ -458,6 +490,7 @@ Rcpp::List dlm_cpp(
                                                           Bdraw_dims[0], Bdraw_dims[1]);
 		    Bdraw_vec(k) = Bdraw[k](0,0);
       }
+      Xbdraw = X_reg.rightCols(ncovx) * Bdraw_vec;
     }
 
     // Load phi_ar1_time_draw and phi_ar1_space_time_draw
@@ -465,25 +498,50 @@ Rcpp::List dlm_cpp(
       phi_ar1_time_draw = extract_last_col(out_prev["phi_AR1_time"]);
       phi_ar1_space_time_draw = extract_last_col(out_prev["phi_AR1_spacetime"]);
     }
-    
-  } else { // Initial LM fit if not restarting    
-    
+
+  } else { // Initial LM fit if not restarting
+    const int nbasis = 4;
+    Eigen::VectorXd knots = Eigen::VectorXd::LinSpaced(nbasis + 2, 0.0, 1.0);
+    knots = knots.segment(1, nbasis);
+    Eigen::VectorXd times = Eigen::VectorXd::LinSpaced(t, 0.0, 1.0);
+    Eigen::MatrixXd basis_time = kronecker(Eigen::MatrixXd::Identity(p, p), bspline_basis_matrix(times, 3, knots));
+
+    Eigen::MatrixXd X_reg_aug(p * t, basis_time.cols() + X_reg.cols());
+    X_reg_aug << X_reg, basis_time;
+
     // Fit linear model
-    Eigen::VectorXd bml = lmfit(X_reg, eta_tilde_vec);
-    if (bml.size() != ncovz + ncovx) {
+    Eigen::VectorXd bml = lmfit(X_reg_aug, eta_tilde_vec - offset_vec);
+    if (bml.size() != ncovz + ncovx + basis_time.cols()) {
       Rcpp::warning("LM fit returned unexpected number of coefficients. Initializing Bdraw to zero.");
       Bdraw_vec = Eigen::VectorXd::Zero(ncovx);
     } else {
       if (ncovz > 0) {
         gamma_draw = bml.head(ncovz);
-        Eigen::VectorXd Zgamma = Z_mat * gamma_draw;
-        meanZ = Eigen::Map<const Eigen::MatrixXd>(Zgamma.data(), p, t);
+        Zgamma = Z_mat * gamma_draw;
+        meanZ = Eigen::Map<Eigen::MatrixXd>(Zgamma.data(), p, t);
       }
-      Bdraw_vec = bml.tail(ncovx);
+      Bdraw_vec = bml.head(ncovz+ncovx).tail(ncovx);
+      Xbdraw = X_reg.rightCols(ncovx) * Bdraw_vec;
     }
+    
+    Eigen::MatrixXd BB=(basis_time*bml.tail(basis_time.cols())).reshaped(p, t);
+    Eigen::MatrixXd thetay_draw = offset + meanZ + BB;
     for (int k = 0; k < ncovx; ++k) {
       Bdraw[k](0,0) = Bdraw_vec(k);
+      thetay_draw += X[k]*Bdraw_vec(k);
     }
+
+    double meanBB = BB.mean();
+    Btimedraw[0] = BB.colwise().mean().array() - meanBB;
+    Bspacedraw[0] = BB.rowwise().mean().array() - meanBB;
+    Bspacetimedraw[0] = BB.array() - Btimedraw[0].replicate(p,1).array() - Bspacedraw[0].replicate(1,t).array() + meanBB;
+
+    Eigen::VectorXd Ht = Eigen::VectorXd::Constant(1, 0.001);
+    Eigen::MatrixXd Ctuning = Eigen::MatrixXd::Constant(1, 1, ctuning);
+    std::vector<Eigen::MatrixXd> AugData = augmented_data_poisson_lognormal(
+      Y, eta_tilde, thetay_draw, Ht, pswitch_Y, Ctuning);
+    eta_tilde = AugData[0];
+    eta_tilde_vec = Eigen::Map<Eigen::VectorXd>(eta_tilde.data(), eta_tilde.size());
   }
   
   
@@ -568,7 +626,7 @@ Rcpp::List dlm_cpp(
   std::vector<Eigen::MatrixXd> Q1invdraw_space_dense(ncovx, Eigen::MatrixXd::Zero(p, p));
   std::vector<Eigen::MatrixXd> Q1invdraw_spacetime_dense(ncovx, Eigen::MatrixXd::Zero(p, p));
   int default_q0_index = static_cast<int>(std::floor(15.0 / 2.0 - 1.0));
-  int q0_index_space, q0_index_spacetime;
+  int q0_index_space = 0, q0_index_spacetime = 0;
 
   for (int k = 0; k < ncovx; ++k) {
     if (rho1_space_draw(k) == 0.0) {
@@ -634,7 +692,7 @@ Rcpp::List dlm_cpp(
   std::vector<Eigen::MatrixXd> YFITTED_out(collections, Eigen::MatrixXd::Zero(p, t));
   Eigen::MatrixXd RMSE_(1, collections);
   Eigen::MatrixXd MAE_(1, collections);
-  Eigen::VectorXd chi_sq_pred_ = Eigen::VectorXd::Zero(collections);
+  Eigen::VectorXd chi_sq_fitted_ = Eigen::VectorXd::Zero(collections);
   Eigen::VectorXd chi_sq_obs_ = Eigen::VectorXd::Zero(collections);
   
   
@@ -701,8 +759,8 @@ Rcpp::List dlm_cpp(
   }
   
   // Diagnostics
-  Eigen::VectorXd pvalue_ResgrRespred_sum = Eigen::VectorXd::Zero(valid_values.size());
-  Eigen::VectorXd pvalue_YgrYhat_sum = Eigen::VectorXd::Zero(valid_values.size());
+  Eigen::VectorXd pvalue_ResgrRespred_sum = Eigen::VectorXd::Zero(valid_indices.size());
+  Eigen::VectorXd pvalue_YgrYhat_sum = Eigen::VectorXd::Zero(valid_indices.size());
   double chisq_count = 0.0;
   double quant = 0.95;
   Eigen::VectorXd p95_obs_ = cpp_prctile(Y, quant);
@@ -721,21 +779,20 @@ Rcpp::List dlm_cpp(
       Rcpp::Rcout << "Iteration: " << irep + 1 << " / " << MCMC_samples << std::endl;
       Rcpp::checkUserInterrupt(); // Allow user to interrupt
     }
-        
+    
     // Step I.a: Sampling T-beta (time effects)
     // Compute residual y_k
-    Eigen::VectorXd y2_vec = eta_tilde_vec - Zgamma - offset_vec;
+    Eigen::VectorXd y2_vec = eta_tilde_vec - Zgamma - offset_vec - Xbdraw;
     for (int k = 0; k < ncovx; ++k) {
       y2_vec -= bigG2[k] * Eigen::Map<Eigen::VectorXd>(Bspacetimedraw[k].data(), Bspacetimedraw[k].size());
       y2_vec -= bigG3[k] * Bspacedraw[k].col(0);
-	  Eigen::MatrixXd xxxx = X[k] * Bdraw_vec(k);
-      y2_vec -= Eigen::Map<Eigen::VectorXd>(xxxx.data(), xxxx.size());
     }
+
     for (int k = 0; k < ncovx; ++k) {
       Eigen::VectorXd y_k = y2_vec;
       for (int k2 = 0; k2 < ncovx; ++k2) {
         if (k == k2) continue;
-        y_k -= bigG[k2] * Eigen::Map<const Eigen::VectorXd>(Btimedraw[k2].data(), t);
+        y_k -= bigG[k2] * Btimedraw[k2].row(0).transpose();
       }
       
       // Construct prior precision matrix K = H^T * invS * H
@@ -744,7 +801,7 @@ Rcpp::List dlm_cpp(
       for (int i = 0; i < Tq; ++i) {
         invS_triplets.emplace_back(i, i, Q1invdraw_time(k));
       }
-      invS_triplets[0] = Eigen::Triplet<double>(0, 0, 1.0 / V_beta_0);  // diffuse prior
+      invS_triplets[0] = Eigen::Triplet<double>(0, 0, 1.0 / V_beta_0(k));  // diffuse prior
       invS_diag.setFromTriplets(invS_triplets.begin(), invS_triplets.end());
             
       // Sample from posterior
@@ -760,59 +817,58 @@ Rcpp::List dlm_cpp(
     
     // Step I.b: Sampling ST-beta (space-time effects)
     // Compute residual y_k
-    y2_vec = eta_tilde_vec - Zgamma - offset_vec;
+    y2_vec = eta_tilde_vec - Zgamma - offset_vec - Xbdraw;
     for (int k = 0; k < ncovx; ++k) {
-      y2_vec -= bigG[k] * Eigen::Map<Eigen::VectorXd>(Btimedraw[k].row(0).data(), Btimedraw[k].cols());
+      y2_vec -= bigG[k] * Btimedraw[k].row(0).transpose();
       y2_vec -= bigG3[k] * Bspacedraw[k].col(0);
-      Eigen::MatrixXd xxxx = X[k] * Bdraw_vec(k);
-      y2_vec -= Eigen::Map<Eigen::VectorXd>(xxxx.data(), xxxx.size());
+    }
+      
+    for (int k = 0; k < ncovx; ++k) {
+      if (ST(k) == 1.0) {
+        Eigen::VectorXd y_k = y2_vec;
+        for (int k2 = 0; k2 < ncovx; ++k2) {
+          if (k == k2) continue;
+          y_k -= bigG2[k2] * Eigen::Map<const Eigen::VectorXd>(Bspacetimedraw[k2].data(), p * t);
+        }
+        
+        // Construct block-diagonal prior precision matrix invS_diag
+        Eigen::SparseMatrix<double> invS_diag(p * t, p * t);
+        // std::vector<Eigen::Triplet<double>> triplets;
+        // for (int i = 0; i < p; ++i) {
+        //   triplets.emplace_back(i, i, 1.0 / V_beta_0);  // prior for beta_0
+        // }
+        // for (int i = 1; i < t; ++i) {
+        //   for (int j = 0; j < Q1invdraw_spacetime[k].outerSize(); ++j) {
+        //     for (Eigen::SparseMatrix<double>::InnerIterator it(Q1invdraw_spacetime[k], j); it; ++it) {
+        //       int row = i * p + it.row();
+        //       int col = i * p + it.col();
+        //       triplets.emplace_back(row, col, it.value());
+        //     }
+        //   }
+        // }
+        // invS_diag.setFromTriplets(triplets.begin(), triplets.end());
+        if (!point_referenced) {
+          invS_diag = createBlockDiagonal(Q1invdraw_spacetime[k], 1.0 / V_beta_0(k), t);
+        } else {
+          invS_diag = createBlockDiagonal_dense(Q1invdraw_spacetime_dense[k], 1.0 / V_beta_0(k), t);
+        }
+        
+        // Sample from posterior
+        Eigen::MatrixXd bb = posterior_beta(H2.transpose() * invS_diag * H2, bigG2[k], s2_err_mis_draw, y_k); // pt x 1
+        // Reshape and apply sum-to-zero constraints
+        Eigen::MatrixXd Bdrawc = Eigen::Map<Eigen::MatrixXd>(bb.data(), p, t);
+        Bdrawc = Bdrawc.colwise() - Bdrawc.rowwise().mean();  // center columns (space)
+        Bdrawc = Bdrawc.rowwise() - Bdrawc.colwise().mean();  // center rows (time)
+        Bspacetimedraw[k] = Bdrawc;
+      }
     }
     
-    for (int k = 0; k < ncovx; ++k) {
-      Eigen::VectorXd y_k = y2_vec;
-      for (int k2 = 0; k2 < ncovx; ++k2) {
-        if (k == k2) continue;
-        y_k -= bigG2[k2] * Eigen::Map<const Eigen::VectorXd>(Bspacetimedraw[k2].data(), p * t);
-      }
-      
-      // Construct block-diagonal prior precision matrix invS_diag
-      Eigen::SparseMatrix<double> invS_diag(p * t, p * t);
-      // std::vector<Eigen::Triplet<double>> triplets;
-      // for (int i = 0; i < p; ++i) {
-      //   triplets.emplace_back(i, i, 1.0 / V_beta_0);  // prior for beta_0
-      // }
-      // for (int i = 1; i < t; ++i) {
-      //   for (int j = 0; j < Q1invdraw_spacetime[k].outerSize(); ++j) {
-      //     for (Eigen::SparseMatrix<double>::InnerIterator it(Q1invdraw_spacetime[k], j); it; ++it) {
-      //       int row = i * p + it.row();
-      //       int col = i * p + it.col();
-      //       triplets.emplace_back(row, col, it.value());
-      //     }
-      //   }
-      // }
-      // invS_diag.setFromTriplets(triplets.begin(), triplets.end());
-      if (!point_referenced) {
-        invS_diag = createBlockDiagonal(Q1invdraw_spacetime[k], 1.0 / V_beta_0, t);
-      } else {
-        invS_diag = createBlockDiagonal_dense(Q1invdraw_spacetime_dense[k], 1.0 / V_beta_0, t);
-      }
-      
-      // Sample from posterior
-      Eigen::MatrixXd bb = posterior_beta(H2.transpose() * invS_diag * H2, bigG2[k], s2_err_mis_draw, y_k); // pt x 1
-      // Reshape and apply sum-to-zero constraints
-      Eigen::MatrixXd Bdrawc = Eigen::Map<Eigen::MatrixXd>(bb.data(), p, t);
-      Bdrawc = Bdrawc.colwise() - Bdrawc.rowwise().mean();  // center columns (space)
-      Bdrawc = Bdrawc.rowwise() - Bdrawc.colwise().mean();  // center rows (time)
-      Bspacetimedraw[k] = Bdrawc * ST(k);  // apply ST indicator
-    }
     
     // Step I.c: Sampling S-beta (spatial effects)
-    y2_vec = eta_tilde_vec - Zgamma - offset_vec;
+    y2_vec = eta_tilde_vec - Zgamma - offset_vec - Xbdraw;
     for (int k = 0; k < ncovx; ++k) {
-      y2_vec -= bigG[k] * Eigen::Map<Eigen::VectorXd>(Btimedraw[k].row(0).data(), Btimedraw[k].cols());
+      y2_vec -= bigG[k] * Btimedraw[k].row(0).transpose();
       y2_vec -= bigG2[k] * Eigen::Map<Eigen::VectorXd>(Bspacetimedraw[k].data(), Bspacetimedraw[k].size());
-      Eigen::MatrixXd xxxx = X[k] * Bdraw_vec(k);
-      y2_vec -= Eigen::Map<Eigen::VectorXd>(xxxx.data(), xxxx.size());
     }
     
     for (int k = 0; k < ncovx; ++k) {
@@ -846,13 +902,7 @@ Rcpp::List dlm_cpp(
       y2_reg -= bigG2[k] * Eigen::Map<const Eigen::VectorXd>(Bspacetimedraw[k].data(), p * t);
       y2_reg -= bigG3[k] * Bspacedraw[k];
     }
-    
-    // Construct combined regressor matrix [Z, X]
-    Eigen::MatrixXd X_reshaped(p * t, ncovx);
-    for (int k = 0; k < ncovx; ++k) {
-      X_reshaped.col(k) = Eigen::Map<const Eigen::VectorXd>(X[k].data(), p * t);
-    }
-    
+        
     // Prior precision (diagonal, small values for diffuse prior)
     Eigen::MatrixXd K_reg = Eigen::MatrixXd::Identity(ncovz + ncovx, ncovz + ncovx) * (1.0 / V_gamma);
     
@@ -876,13 +926,14 @@ Rcpp::List dlm_cpp(
     // Update gamma_draw and Bdraw
     if (ncovz > 0) {
       gamma_draw = gamma_beta_draw.head(ncovz);
-      Eigen::VectorXd Zgamma = Z_mat * gamma_draw;
-      meanZ = Eigen::Map<const Eigen::MatrixXd>(Zgamma.data(), p, t);
+      Zgamma = Z_mat * gamma_draw;
+      meanZ = Eigen::Map<Eigen::MatrixXd>(Zgamma.data(), p, t);
     }
     Eigen::VectorXd Bdraw_vec = gamma_beta_draw.tail(ncovx);
     for (int k = 0; k < ncovx; ++k) {
       Bdraw[k](0,0) = Bdraw_vec(k);
     }
+    Xbdraw = X_reg.rightCols(ncovx) * Bdraw_vec;
     
     
     // Step I.e: Computing the current mean component from X
@@ -905,8 +956,8 @@ Rcpp::List dlm_cpp(
       Eigen::VectorXd e2(t);
       e2(0) = Btime_k(0, 0) - phi_ar1_time_draw(k) * Btime_k(0, 0);
       e2.segment(1, t - 1) = Btime_k.row(0).segment(1, t - 1) - phi_ar1_time_draw(k) * Btime_k.row(0).segment(0, t - 1);
-      double newnu2 = a1 + static_cast<double>(t - 1) / 2.0;
-      double newS2 = b1 + 0.5 * e2.squaredNorm();
+      double newnu2 = a_inn_time(k) + static_cast<double>(t - 1) / 2.0;
+      double newS2 = b_inn_time(k) + 0.5 * e2.squaredNorm();
       Q1invdraw_time(k) = R::rgamma(newnu2, 1.0 / newS2);
       
       // --- SPACE-TIME (ST-beta) ---
@@ -921,13 +972,15 @@ Rcpp::List dlm_cpp(
           rho2_space_time_draw(k) = STC_list["range_draw"];
           q0_index_spacetime = STC_list["range_index"];
           int pstar = (rho2_space_time_draw(k) == 1.0) ? (p - 1) : p;
-          rho1_space_time_draw(k) = posterior_conditional_variance(Btemp, Q0[q0_index_spacetime], 0.01, 0.01, pstar, t - 1);
+          rho1_space_time_draw(k) = posterior_conditional_variance(Btemp, Q0[q0_index_spacetime], 
+            a_rho1st(k), b_rho1st(k), pstar, t - 1);
           Q1invdraw_spacetime[k] = (1.0 / rho1_space_time_draw(k)) * Q0[q0_index_spacetime];
         } else {
           Rcpp::List STC_list = MH_spatial_correlation_EXP_fast(Btemp, rho1_space_time_draw(k), Q0_dense, allowed_range, logdet_Q0_spacetime);
           rho2_space_time_draw(k) = STC_list["range_draw"];
           q0_index_spacetime = STC_list["range_index"];
-          rho1_space_time_draw(k) = posterior_conditional_variance_dense(Btemp, Q0_dense[q0_index_spacetime], 0.01, 0.01, p, t - 1);
+          rho1_space_time_draw(k) = posterior_conditional_variance_dense(Btemp, Q0_dense[q0_index_spacetime], 
+            a_rho1st(k), b_rho1st(k), p, t - 1);
           Q1invdraw_spacetime_dense[k] = (1.0 / rho1_space_time_draw(k)) * Q0_dense[q0_index_spacetime];
         }
       } else {
@@ -948,13 +1001,13 @@ Rcpp::List dlm_cpp(
         rho2_space_draw(k) = SC_list["range_draw"];
         q0_index_space = SC_list["range_index"];
         int pstar_s = (rho2_space_draw(k) == 1.0) ? (p - 1) : p;
-        rho1_space_draw(k) = posterior_conditional_variance(Bs_k, Q0[q0_index_space], 0.01, 0.01, pstar_s, 1);
+        rho1_space_draw(k) = posterior_conditional_variance(Bs_k, Q0[q0_index_space], a_rho1s(k), b_rho1s(k), pstar_s, 1);
         Q1invdraw_space[k] = (1.0 / rho1_space_draw(k)) * Q0[q0_index_space];
       } else {
         Rcpp::List SC_list = MH_spatial_correlation_EXP_fast(Bs_k, rho1_space_draw(k), Q0_dense, allowed_range, logdet_Q0_space);
         rho2_space_draw(k) = SC_list["range_draw"];
         q0_index_space = SC_list["range_index"];
-        rho1_space_draw(k) = posterior_conditional_variance_dense(Bs_k, Q0_dense[q0_index_space], 0.01, 0.01, p, 1);
+        rho1_space_draw(k) = posterior_conditional_variance_dense(Bs_k, Q0_dense[q0_index_space], a_rho1s(k), b_rho1s(k), p, 1);
         Q1invdraw_space_dense[k] = (1.0 / rho1_space_draw(k)) * Q0_dense[q0_index_space];
       }
     }
@@ -964,28 +1017,42 @@ Rcpp::List dlm_cpp(
     Eigen::MatrixXd thetay_draw = current_meanY1 + meanZ + offset;
     Eigen::MatrixXd yhat = eta_tilde - thetay_draw;
     
-    double sse_2 = yhat.array().square().sum();
-    double g1_pos = s2_a + static_cast<double>(p * t) / 2.0;
-    double g2_pos = s2_b + 0.5 * sse_2;
+    double precision_draw = 1.0;
+    if (family == "gaussian" || family == "poisson") {
+      double sse_2 = yhat.array().square().sum();
+      double g1_pos = a_s2 + static_cast<double>(p * t) / 2.0;
+      double g2_pos = b_s2 + 0.5 * sse_2;
+      
+      precision_draw = R::rgamma(g1_pos, 1.0 / g2_pos);
+    }
     
-    double precision_draw = R::rgamma(g1_pos, 1.0 / g2_pos);
     s2_err_mis_draw = 1.0 / precision_draw;
-    
-    
-    // Step IV: Handling missing data (imputation)
-    // Generate predicted Y ~ N(thetay_draw, s2_err_mis_draw * I)
     double current_sd = std::sqrt(s2_err_mis_draw);
     auto norm_mcmc = [&] (double) {return R::rnorm(0.0, current_sd);};
-    Eigen::MatrixXd Yfitted = Eigen::MatrixXd::NullaryExpr(p, t, norm_mcmc);
-    Yfitted += thetay_draw;
+
+
+    // Step IV: sample latent process if non-gaussian outcome
+    if (family == "poisson") {
+      Eigen::VectorXd Ht = Eigen::VectorXd::Constant(1, s2_err_mis_draw);
+      Eigen::MatrixXd Ctuning = Eigen::MatrixXd::Constant(1, 1, ctuning);
+      std::vector<Eigen::MatrixXd> AugData = augmented_data_poisson_lognormal(
+        Y, eta_tilde, thetay_draw, Ht, pswitch_Y, Ctuning);
+      eta_tilde = AugData[0];
+      pswitch_Y = AugData[1];
+    } else if (family == "bernoulli") {
+      for (int i = 0; i < p; ++i) {
+        for (int j = 0; j < t; ++j) {
+          if (Y(i, j) == 0.0) {
+            Rcpp::NumericVector trunorm_draw = rtruncnorm(1, thetay_draw(i, j), current_sd, std::numeric_limits<double>::lowest(), -1e-5);
+            eta_tilde(i, j) = trunorm_draw[0];
+          } else {
+            Rcpp::NumericVector trunorm_draw = rtruncnorm(1, thetay_draw(i, j), current_sd, 0.0, std::numeric_limits<double>::max());
+            eta_tilde(i, j) = trunorm_draw[0];
+          }
+        }
+      }
+    }
     
-    // Impute missing values in eta_tilde
-		if (nan_indices.size() > 0) {
-			for (const auto& [i, j] : nan_indices) {
-				eta_tilde(i, j) = Yfitted(i, j);
-			}
-		}
-    eta_tilde_vec = Eigen::Map<const Eigen::VectorXd>(eta_tilde.data(), eta_tilde.size());
 
     // Step V: sample temporal autoregressive coefficients
     if (!random_walk) {
@@ -1001,26 +1068,63 @@ Rcpp::List dlm_cpp(
         Rcpp::NumericVector phi_t_draw = rtruncnorm(1, Mean_posterior_phi_t, std::sqrt(1.0/Prec_posterior_phi_t), -1.0+1e-5, 1.0-1e-5);
         phi_ar1_time_draw(k) = phi_t_draw[0];
 
-        // SPACE-TIME
-        const Eigen::MatrixXd& Bst_k = Bspacetimedraw[k];  // p x t
-        double Prec_prior_phi_st = 1.0;
-        double Prec_posterior_phi_st = 0.0;
-        // double Mean_posterior_phi_st = 0.0;
-        Prec_posterior_phi_st += Bst_k.col(0).transpose() * Q1invdraw_spacetime_dense[k] * Bst_k.col(0);
-        // Mean_posterior_phi_st += Bst_k.col(0).transpose() * Q1invdraw_spacetime[k] * Bst_k.col(0);
-        double Mean_posterior_phi_st = Prec_posterior_phi_st;
-        for (int i = 1; i < t; ++i) {
-          Prec_posterior_phi_st += (Bst_k.col(i-1).transpose() * Q1invdraw_spacetime_dense[k] * Bst_k.col(i-1))(0, 0);
-          Mean_posterior_phi_st += (Bst_k.col(i-1).transpose() * Q1invdraw_spacetime_dense[k] * Bst_k.col(i))(0, 0);
+        if (ST(k) == 1.0) {
+          // SPACE-TIME
+          const Eigen::MatrixXd& Bst_k = Bspacetimedraw[k];  // p x t
+          double Prec_prior_phi_st = 1.0;
+          double Prec_posterior_phi_st = 0.0;
+          // double Mean_posterior_phi_st = 0.0;
+          Prec_posterior_phi_st += Bst_k.col(0).transpose() * Q1invdraw_spacetime_dense[k] * Bst_k.col(0);
+          // Mean_posterior_phi_st += Bst_k.col(0).transpose() * Q1invdraw_spacetime[k] * Bst_k.col(0);
+          double Mean_posterior_phi_st = Prec_posterior_phi_st;
+          for (int i = 1; i < t; ++i) {
+            Prec_posterior_phi_st += (Bst_k.col(i-1).transpose() * Q1invdraw_spacetime_dense[k] * Bst_k.col(i-1))(0, 0);
+            Mean_posterior_phi_st += (Bst_k.col(i-1).transpose() * Q1invdraw_spacetime_dense[k] * Bst_k.col(i))(0, 0);
+          }
+          Prec_posterior_phi_st += Prec_prior_phi_st;
+          Mean_posterior_phi_st /= Prec_posterior_phi_st;
+          Rcpp::NumericVector phi_st_draw = rtruncnorm(1, Mean_posterior_phi_st, std::sqrt(1.0/Prec_posterior_phi_st), -1.0+1e-5, 1.0-1e-5);
+          phi_ar1_space_time_draw(k) = phi_st_draw[0];
         }
-        Prec_posterior_phi_st += Prec_prior_phi_st;
-        Mean_posterior_phi_st /= Prec_posterior_phi_st;
-        Rcpp::NumericVector phi_st_draw = rtruncnorm(1, Mean_posterior_phi_st, std::sqrt(1.0/Prec_posterior_phi_st), -1.0+1e-5, 1.0-1e-5);
-        phi_ar1_space_time_draw(k) = phi_st_draw[0];
       }
     }
-
     
+    
+    // Step VI: Handling missing data (imputation)
+    // Generate predicted Y ~ N(thetay_draw, s2_err_mis_draw * I)
+    Eigen::MatrixXd Yfitted(p, t);
+    if (family == "gaussian") {
+      Yfitted = Eigen::MatrixXd::NullaryExpr(p, t, norm_mcmc);
+      Yfitted += thetay_draw;
+      // Impute missing values in eta_tilde
+      for (const auto& [i, j] : nan_indices) {
+        eta_tilde(i, j) = Yfitted(i, j);
+      }
+    } else if (family == "poisson") {
+      for (int i = 0; i < p; ++i) {
+        for (int j = 0; j < t; ++j) {
+          Yfitted(i, j) = R::rpois(std::exp(eta_tilde(i, j)));
+        }
+      }
+      // Impute missing values in Y
+      for (const auto& [i, j] : nan_indices) {
+        Y(i, j) = Yfitted(i, j);
+      }
+    } else if (family == "bernoulli") {
+      // Eigen::MatrixXd pr_y1(p, t); // Pr (Y = 1 | parameters)
+      for (int i = 0; i < p; ++i) {
+        for (int j = 0; j < t; ++j) {
+          double pr_y1 = 1.0 - R::pnorm(- thetay_draw(i, j), 0.0, 1.0, true, false);
+          Yfitted(i, j) = R::rbinom(1, pr_y1);
+        }
+      }
+      // Impute missing values in Y
+      for (const auto& [i, j] : nan_indices) {
+        Y(i, j) = Yfitted(i, j);
+      }
+    }
+    
+    eta_tilde_vec = Eigen::Map<Eigen::VectorXd>(eta_tilde.data(), eta_tilde.size());
     
     // --- Store results post-burn-in and thinning ---
     if (irep >= nburn && (irep - nburn + 1) % thin == 0) {
@@ -1049,7 +1153,9 @@ Rcpp::List dlm_cpp(
         std::vector<Eigen::MatrixXd> BBtimedraw(ncovx, Eigen::MatrixXd::Zero(1, t_new));
         for (int k = 0; k < ncovx; ++k) {
           q0_index_space = find_index(rho2_space_draw(k), allowed_range);
-          q0_index_spacetime = find_index(rho2_space_time_draw(k), allowed_range);
+          if (ST(k) == 1.0) {
+            q0_index_spacetime = find_index(rho2_space_time_draw(k), allowed_range);
+          }
           // TIME PREDICTIONS
           BBtimedraw[k].leftCols(t) = Btimedraw[k];
           Bspacetime_pred_obs_sites[k].leftCols(t) = Bspacetimedraw[k]; // Copy existing data
@@ -1059,10 +1165,12 @@ Rcpp::List dlm_cpp(
               Btime_pred_draw[k](0, h) = Btime_pred_mean_tph + std::sqrt(1.0 / Q1invdraw_time(k)) * R::rnorm(0.0, 1.0);
               // Update mean for the next prediction step.
               Btime_pred_mean_tph = phi_ar1_time_draw(k) * Btime_pred_draw[k](0, h);
-
-              Bspacetime_pred_obs_sites[k].col(t + h) =
-                phi_ar1_space_time_draw(k) * Bspacetime_pred_obs_sites[k].col(t + h - 1) +
-                std::sqrt(rho1_space_time_draw(k)) * chol_Corr[q0_index_spacetime] * randn_vector(p);
+              if (ST(k) == 1.0) {
+                Bspacetime_pred_obs_sites[k].col(t + h) =
+                  phi_ar1_space_time_draw(k) * Bspacetime_pred_obs_sites[k].col(t + h - 1) +
+                  std::sqrt(rho1_space_time_draw(k)) * chol_Corr[q0_index_spacetime] * randn_vector(p);
+              }
+              
             }
             BBtimedraw[k].rightCols(h_ahead) = Btime_pred_draw[k];
           }
@@ -1109,6 +1217,7 @@ Rcpp::List dlm_cpp(
                 QtB_space,
                 U_t,
                 W_pred_dense,               // non usato qui, ma lasciato per futura estensione
+                ST(k),
                 Bspace_pred_draw[k],
                 Bspacetime_pred_draw[k],
                 base_seed
@@ -1135,8 +1244,27 @@ Rcpp::List dlm_cpp(
           Eigen::VectorXd Zgamma_pred = Z_pred_mat * gamma_draw;
           meanZ_pred = Eigen::Map<const Eigen::MatrixXd>(Zgamma_pred.data(), p_new, t_new);
         }
-        Eigen::MatrixXd Ypred = Eigen::MatrixXd::NullaryExpr(p_new, t_new, norm_mcmc);
-        Ypred += meanY1_pred + meanZ_pred + offset_pred;
+        Eigen::MatrixXd Ypred(p_new, t_new), eta_tilde_pred, thetay_pred = meanY1_pred + meanZ_pred + offset_pred;
+        if (family == "gaussian") {
+          Ypred = Eigen::MatrixXd::NullaryExpr(p_new, t_new, norm_mcmc);
+          Ypred += thetay_pred;
+        } else if (family == "poisson") {
+          eta_tilde_pred = Eigen::MatrixXd::NullaryExpr(p_new, t_new, norm_mcmc);
+          eta_tilde_pred += thetay_pred;
+          for (int i = 0; i < p_new; ++i) {
+            for (int j = 0; j < t_new; ++j) {
+              Ypred(i, j) = R::rpois(std::exp(eta_tilde_pred(i, j)));
+            }
+          }
+        } else if (family == "bernoulli") {
+          // Eigen::MatrixXd pr_ypred1(p_new, t_new); // Pr (Ypred = 1 | Y, parameters)
+          for (int i = 0; i < p_new; ++i) {
+            for (int j = 0; j < t_new; ++j) {
+              double pr_ypred1 = 1.0 - R::pnorm(- thetay_pred(i, j), 0.0, 1.0, true, false);
+              Ypred(i, j) = R::rbinom(1, pr_ypred1);
+            }
+          }
+        }
 
         // Update averages on predictions
         Ypred_mean += Ypred;
@@ -1160,70 +1288,91 @@ Rcpp::List dlm_cpp(
         }
       }
       
-			// Calculate point-wise log-likelihood
-			Eigen::MatrixXd term1 = -0.5 * yhat.array().square() / s2_err_mis_draw;
-			Eigen::MatrixXd term2 = Eigen::MatrixXd::Constant(p, t, -0.5 * std::log(2.0 * M_PI));
-			Eigen::MatrixXd term3 = Eigen::MatrixXd::Constant(p, t, -0.5 * std::log(s2_err_mis_draw));
-			store_llike[collect_count] = term1 + term2 + term3;
-
-      Eigen::MatrixXd Yfitted2 = Eigen::MatrixXd::NullaryExpr(p, t, norm_mcmc);
-			Yfitted2 += thetay_draw;
+			// Calculate point-wise log-likelihood and generate Yfitted2
+      Eigen::MatrixXd Yfitted2(p, t);
+      if (family == "gaussian") {
+        // Eigen::MatrixXd term1 = -0.5 * yhat.array().square() / s2_err_mis_draw;
+        // Eigen::MatrixXd term2 = Eigen::MatrixXd::Constant(p, t, -0.5 * std::log(2.0 * M_PI));
+        // Eigen::MatrixXd term3 = Eigen::MatrixXd::Constant(p, t, -0.5 * std::log(s2_err_mis_draw));
+        // store_llike[collect_count] = term1 + term2 + term3;
+        store_llike[collect_count] = -0.5 * yhat.array().square() / s2_err_mis_draw;
+        store_llike[collect_count].array() += -0.5 * std::log(2.0 * M_PI);
+        store_llike[collect_count].array() += -0.5 * std::log(s2_err_mis_draw);
+        Yfitted2 = Eigen::MatrixXd::NullaryExpr(p, t, norm_mcmc);
+        Yfitted2 += thetay_draw;
+      } else if (family == "poisson") {
+        for (int i = 0; i < p; ++i) {
+          for (int j = 0; j < t; ++j) {
+            double lambda = std::exp(eta_tilde(i, j));
+            store_llike[collect_count](i, j) = R::dpois(Y(i, j), lambda, true);
+            Yfitted2(i, j) = R::rpois(lambda);
+          }
+        }
+      } else if (family == "bernoulli") {
+        // Eigen::MatrixXd pr_y1(p, t); // Pr (Y = 1 | parameters)
+        for (int i = 0; i < p; ++i) {
+          for (int j = 0; j < t; ++j) {
+            double pr_y1 = 1.0 - R::pnorm(- thetay_draw(i, j), 0.0, 1.0, true, false);
+            store_llike[collect_count](i, j) = R::dbinom(Y(i, j), 1, pr_y1, true);
+            Yfitted2(i, j) = R::rbinom(1, pr_y1);
+          }
+        }
+      }
+      
+      
       if (keepY) {
         YFITTED_out[collect_count] = Yfitted;
       }
       
       // Diagnostics
-      if (n_obs>0) {
-        Eigen::VectorXd Y_obs(n_obs), Yfitted_obs(n_obs), Yfitted_2_obs(n_obs), theta_obs(n_obs);
-        int idx = 0;
-        
-        for (int i = 0; i < Y.rows(); ++i) {
-          for (int j = 0; j < Y.cols(); ++j) {
-            if (std::isfinite(Y(i, j))) {
-              Y_obs(idx) = Y(i, j);
-              Yfitted_obs(idx) = Yfitted(i, j);
-              Yfitted_2_obs(idx) = Yfitted2(i, j);
-              theta_obs(idx) = thetay_draw(i, j);
-              ++idx;
-            }
-          }
+      Eigen::VectorXd Y_obs(n_obs), Yfitted_obs(n_obs), Yfitted_2_obs(n_obs), mean_obs(n_obs), Var_obs(n_obs);
+      int idx = 0;
+      
+      for (const auto& [i, j] : valid_indices) {
+        Y_obs(idx) = Y(i, j);
+        Yfitted_obs(idx) = Yfitted(i, j);
+        Yfitted_2_obs(idx) = Yfitted2(i, j);
+        if (family == "gaussian") {
+          mean_obs(idx) = thetay_draw(i, j);
+          Var_obs(idx) = s2_err_mis_draw;
+        } else if (family == "poisson") {
+          mean_obs(idx) = std::exp(eta_tilde(i, j));
+          Var_obs(idx) = mean_obs(idx);
+        } else if (family == "bernoulli") {
+          mean_obs(idx) = 1.0 - R::pnorm(- thetay_draw(i, j), 0.0, 1.0, true, false);
+          Var_obs(idx) = mean_obs(idx) * (1.0 - mean_obs(idx));
         }
-        
-        Eigen::VectorXd V_hat_vec = Eigen::VectorXd::Constant(n_obs, s2_err_mis_draw);
-        Eigen::VectorXd pearson_res = (Y_obs - theta_obs).array() / V_hat_vec.array().sqrt();
-        Eigen::VectorXd pearson_res_pred = (Yfitted_obs - theta_obs).array() / V_hat_vec.array().sqrt();
-        
-        chi_sq_obs_(collect_count) = pearson_res.squaredNorm();
-        chi_sq_pred_(collect_count) = pearson_res_pred.squaredNorm();
-				
-				if (std::isfinite(chi_sq_obs_(collect_count)) && std::isfinite(chi_sq_pred_(collect_count))) {
-					if(chi_sq_obs_(collect_count) >= chi_sq_pred_(collect_count)) {
-						chisq_count += 1.0;
-					}
-				}
-				
-				for (int i = 0; i < n_obs; ++i) {
-					if (std::pow(pearson_res(i), 2.0) >= std::pow(pearson_res_pred(i), 2.0)) {
-						pvalue_ResgrRespred_sum(i) += 1.0;
-					}
-					if (Y_obs(i) >= Yfitted_obs(i)) {
-						pvalue_YgrYhat_sum(i) += 1.0;
-					}
-				}
-
-				// CRPS components
-				store_CRPS_1_sum += (Yfitted_obs - Yfitted_2_obs).array().abs().sum();
-				store_CRPS_2_sum += (Yfitted_obs - Y_obs).array().abs().sum();
-
-        
-        RMSE_(0, collect_count) = std::sqrt((Y_obs - Yfitted_obs).array().square().mean());
-        MAE_(0, collect_count) = (Y_obs - Yfitted_obs).array().abs().mean();
-      } else {
-        RMSE_(0, collect_count) = std::numeric_limits<double>::quiet_NaN();
-        MAE_(0, collect_count) = std::numeric_limits<double>::quiet_NaN();
-        chi_sq_obs_(collect_count) = std::numeric_limits<double>::quiet_NaN();
-        chi_sq_pred_(collect_count) = std::numeric_limits<double>::quiet_NaN();
+        ++idx;
       }
+      
+      Eigen::VectorXd pearson_res = (Y_obs - mean_obs).array() / Var_obs.array().sqrt();
+      Eigen::VectorXd pearson_res_fitted = (Yfitted_obs - mean_obs).array() / Var_obs.array().sqrt();
+      
+      chi_sq_obs_(collect_count) = pearson_res.squaredNorm();
+      chi_sq_fitted_(collect_count) = pearson_res_fitted.squaredNorm();
+      
+      if (std::isfinite(chi_sq_obs_(collect_count)) && std::isfinite(chi_sq_fitted_(collect_count))) {
+        if(chi_sq_obs_(collect_count) >= chi_sq_fitted_(collect_count)) {
+          chisq_count += 1.0;
+        }
+      }
+      
+      for (int i = 0; i < n_obs; ++i) {
+        if (std::pow(pearson_res(i), 2.0) >= std::pow(pearson_res_fitted(i), 2.0)) {
+          pvalue_ResgrRespred_sum(i) += 1.0;
+        }
+        if (Y_obs(i) >= Yfitted_obs(i)) {
+          pvalue_YgrYhat_sum(i) += 1.0;
+        }
+      }
+
+      // CRPS components
+      store_CRPS_1_sum += (Yfitted_obs - Yfitted_2_obs).array().abs().sum();
+      store_CRPS_2_sum += (Yfitted_obs - Y_obs).array().abs().sum();
+
+      
+      RMSE_(0, collect_count) = std::sqrt((Y_obs - Yfitted_obs).array().square().mean());
+      MAE_(0, collect_count) = (Y_obs - Yfitted_obs).array().abs().mean();
       
       Eigen::VectorXd p95_pred = cpp_prctile(Yfitted, quant);
       
@@ -1358,35 +1507,47 @@ Rcpp::List dlm_cpp(
     ave_results["B_pred2_c_t_s_st"] = cube_to_array(B_pred2_c_t_s_st, n_samples_collected);
   }
   
-  // DIC calculation
-	Eigen::VectorXd store_llike_vec(collections);
-	for (int i = 0; i < collect_count; ++i) {
-		store_llike_vec(i) = store_llike[i].sum();
-	}
+  // DIC calculation (using only non-missing Y)
+  Eigen::VectorXd store_llike_vec = Eigen::VectorXd::Zero(collect_count);
+  for (int c = 0; c < collect_count; ++c) {
+    for (const auto& [i, j] : valid_indices) {
+      store_llike_vec(c) += store_llike[c](i, j);
+    }
+  }
   double mean_llike = store_llike_vec.mean();
   double D_bar = -2.0 * mean_llike;
-  
+
   // Extract posterior means
   Eigen::MatrixXd theta_hat = thetay_mean / n_samples_collected;;
   Eigen::MatrixXd eta_tilde_hat = Eta_tilde_mean / n_samples_collected;
   double s2_err_hat = S2_err_mis_.row(0).mean();
   
-  Eigen::MatrixXd resid_hat = eta_tilde_hat - theta_hat;
-  double sse_hat = resid_hat.array().square().sum();
-  
-  double term1_hat = -0.5 * sse_hat / s2_err_hat;
-  double term2_hat = -0.5 * static_cast<double>(p * t) * std::log(2.0 * M_PI);
-  double term3_hat = -0.5 * static_cast<double>(p * t) * std::log(s2_err_hat);
-  double log_lik_hat = term1_hat + term2_hat + term3_hat;
-  double D_hat = -2.0 * log_lik_hat;
-  
+  double log_lik_hat = 0.0;
+  if (family == "gaussian") {
+    for (const auto& [i, j] : valid_indices) {
+      log_lik_hat += R::dnorm(Y(i, j), theta_hat(i, j), std::sqrt(s2_err_hat), true);
+    }
+  } else if (family == "poisson") {
+    for (const auto& [i, j] : valid_indices) {
+      double lambda = std::exp(eta_tilde_hat(i, j));
+      log_lik_hat += R::dpois(Y(i, j), lambda, true);
+    }
+  } else if (family == "bernoulli") {
+    // Eigen::MatrixXd pr_y1(p, t); // Pr (Y = 1 | parameters)
+    for (const auto& [i, j] : valid_indices) {
+      double pr_y1 = 1.0 - R::pnorm(- theta_hat(i, j), 0.0, 1.0, true, false);
+      log_lik_hat += R::dbinom(Y(i, j), 1, pr_y1, true);
+    }
+  }
+
+
+  double D_hat = -2.0 * log_lik_hat;  
 	ave_results["Dbar"] = D_bar;
 	ave_results["pD"] = D_bar - D_hat;
   ave_results["DIC"] = D_bar + (D_bar - D_hat);  // DIC = D_bar + pD = 2*D_bar - D_hat
-  
 
-  // WAIC calculation
-  Rcpp::List waic_list = computeWAIC(store_llike);
+  // WAIC calculation (using only non-missing Y)
+  Rcpp::List waic_list = computeWAIC(store_llike, valid_indices);
   ave_results["WAIC"] = waic_list["waic"];
   ave_results["se_WAIC"] = waic_list["se_waic"];
   ave_results["pWAIC"] = waic_list["p_waic"];
@@ -1395,17 +1556,11 @@ Rcpp::List dlm_cpp(
   ave_results["se_elpd"] = waic_list["se_elpd"];
   
   // Calculate other summary stats for 'ave'
-  if (n_obs>0) {
-    ave_results["pvalue_ResgrReshat"] = pvalue_ResgrRespred_sum.mean() / n_samples_collected;
-    ave_results["pvalue_YgrYhat"] = pvalue_YgrYhat_sum.mean() / n_samples_collected;
-    ave_results["pvalue_chisquare"] = chisq_count / n_samples_collected;
-    ave_results["CRPS"] = (0.5 * store_CRPS_1_sum - store_CRPS_2_sum) / (n_samples_collected * n_obs);
-  } else {
-    ave_results["pvalue_ResgrReshat"] = NA_REAL;
-    ave_results["pvalue_YgrYhat"] = NA_REAL;
-    ave_results["pvalue_chisquare"] = NA_REAL;
-    ave_results["CRPS"] = NA_REAL;
-  }
+  ave_results["pvalue_ResgrReshat"] = pvalue_ResgrRespred_sum.mean() / n_samples_collected;
+  ave_results["pvalue_YgrYhat"] = pvalue_YgrYhat_sum.mean() / n_samples_collected;
+  ave_results["pvalue_chisquare"] = chisq_count / n_samples_collected;
+  ave_results["CRPS"] = (0.5 * store_CRPS_1_sum - store_CRPS_2_sum) / (n_samples_collected * n_obs);
+  
   
   // Percentile p-value vector
   ave_results["pvalue_perc95"] = Rcpp::wrap((percentile95_sum / n_samples_collected).eval());
@@ -1416,18 +1571,15 @@ Rcpp::List dlm_cpp(
   Eigen::MatrixXd varYPRED = Yfitted2_mean_ave - Yfitted_mean_ave.array().square().matrix();
   
   double pmcc_sum = 0.0;
-  if (n_obs > 0) {
-    // for (const auto& [i, j] : nan_indices) continue;  // skip missing
-    for (int i = 0; i < Y.rows(); ++i) {
-      for (int j = 0; j < Y.cols(); ++j) {
-        if (std::isfinite(Y(i, j))) {
-          double diff = Y(i, j) - Yfitted_mean_ave(i, j);
-          pmcc_sum += diff * diff + varYPRED(i, j);
-        }
-      }
-    }
+  for (const auto& [i, j] : valid_indices) {
+    double diff = Y(i, j) - Yfitted_mean_ave(i, j);
+    pmcc_sum += diff * diff + varYPRED(i, j);
   }
   ave_results["PMCC"] = pmcc_sum;
+
+  if (family == "poisson") {
+    ave_results["AccRate"] = pswitch_Y / (n_samples_collected + nburn);
+  }
   
   // Finalize 'out' list
   out_results["sigma2"] = S2_err_mis_;
@@ -1452,9 +1604,11 @@ Rcpp::List dlm_cpp(
       out_results["Ypred"] = cube_to_array(YPRED_out, 1.0);
     }
   }
-  out_results["RMSE"] = RMSE_;
-  out_results["MAE"] = MAE_;
-  out_results["chi_sq_pred_"] = chi_sq_pred_;
+  if (family != "bernoulli") {
+    out_results["RMSE"] = RMSE_;
+    out_results["MAE"] = MAE_;
+  }
+  out_results["chi_sq_fitted_"] = chi_sq_fitted_;
   out_results["chi_sq_obs_"] = chi_sq_obs_;
   
   // Store final state for potential restart

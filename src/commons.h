@@ -250,7 +250,94 @@ Rcpp::List computeWAIC(const std::vector<Eigen::MatrixXd>& LL) {
 
 }
 
+Rcpp::List computeWAIC(const std::vector<Eigen::MatrixXd>& LL, const std::vector<std::pair<int, int>>& valid_indices) {
 
+  const int p = LL[0].rows(); // number of space points
+  const int t = LL[0].cols(); // number of time points
+  const int N = valid_indices.size(); // data points
+  const int S = LL.size(); // number of samples
+
+  Eigen::MatrixXd log_lik(S, N);
+  for (int k = 0; k < S; ++k) {
+    Eigen::RowVectorXd ll(N);
+    int idx = 0;
+    for (const auto& [i, j] : valid_indices) {
+      ll[idx++] = LL[k](i, j);
+    }
+    log_lik.row(k) = ll;
+  }
+
+  
+  Eigen::VectorXd lppd_i(N);
+  Eigen::VectorXd elpd_i(N);
+  Eigen::VectorXd p_waic_i(N);
+  Eigen::VectorXd waic_i(N);
+
+  for (int n = 0; n < N; ++n) {
+    Eigen::VectorXd log_lik_n = log_lik.col(n);
+
+    // log-sum-exp trick
+    double max_log = log_lik_n.maxCoeff();
+    Eigen::VectorXd shifted = (log_lik_n.array() - max_log).exp();
+    double mean_exp = shifted.mean();
+    lppd_i[n] = std::log(mean_exp) + max_log;
+
+    // variance of log-likelihoods
+    double var_log = (log_lik_n.array() - log_lik_n.mean()).square().sum() / (S - 1);
+    p_waic_i[n] = var_log;
+
+    // expected log pointwise predictive density
+    elpd_i[n] = lppd_i[n] - p_waic_i[n];
+
+    // pointwise WAIC contribution
+    waic_i[n] = -2.0 * elpd_i[n];
+  }
+
+  double elpd = elpd_i.sum();
+  double p_waic = p_waic_i.sum();
+  double waic = waic_i.sum();
+
+  // Standard errors
+  double se_elpd = std::sqrt((elpd_i.array() - elpd_i.mean()).square().sum() / (N - 1) * N);
+  double se_p_waic = std::sqrt((p_waic_i.array() - p_waic_i.mean()).square().sum() / (N - 1) * N);
+  double se_waic = std::sqrt((waic_i.array() - waic_i.mean()).square().sum() / (N - 1) * N);
+
+
+  return Rcpp::List::create(
+    Rcpp::Named("elpd") = elpd,
+    Rcpp::Named("p_waic") = p_waic,
+    Rcpp::Named("waic") = waic,
+    Rcpp::Named("se_elpd") = se_elpd,
+    Rcpp::Named("se_p_waic") = se_p_waic,
+    Rcpp::Named("se_waic") = se_waic
+  );
+
+}
+
+
+double logexpit (const double& x) {return - std::log1p(std::exp(-x));}
+Eigen::MatrixXd logexpit (const Eigen::MatrixXd& x) {return - (-x).array().exp().log1p().matrix();}
+
+double expit (const double& x) {return std::exp(logexpit(x));}
+Eigen::MatrixXd expit (const Eigen::MatrixXd& x) {return logexpit(x).array().exp().matrix();}
+
+double logit (const double& x) {return std::log(x) - std::log1p(- x);}
+Eigen::MatrixXd logit (const Eigen::MatrixXd& x) {return (x.array().log() - (- x.array()).log1p()).matrix();}
+
+
+Eigen::MatrixXd kronecker(const Eigen::MatrixXd& A, const Eigen::MatrixXd& B) {
+  int rowsA = A.rows(), colsA = A.cols();
+  int rowsB = B.rows(), colsB = B.cols();
+  Eigen::MatrixXd result(rowsA * rowsB, colsA * colsB);
+
+  for (int i = 0; i < rowsA; ++i) {
+    for (int j = 0; j < colsA; ++j) {
+      result.block(i * rowsB, j * colsB, rowsB, colsB) = A(i, j) * B;
+    }
+  }
+
+  return result;
+}
 
 
 

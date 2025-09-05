@@ -1,6 +1,6 @@
 Package: STDGLM
 Title: Spatio-Temporal Dynamic Generalized Linear Models
-Version: 0.0.0.9000
+Version: 0.1.1
 Authors@R: 
     person("Carlo", "Zaccardi", email = "carlo.zaccardi@unich.it", role = c("aut", "cre"), comment = c(ORCID = "0009-0002-7156-1369"))
 Description: Fit Spatio-Temporal Dynamic Generalized Linear Models (STDGLM), where a set of coefficients is allowed to vary in space and time, and another (optional) set remains constant.

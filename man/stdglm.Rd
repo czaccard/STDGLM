@@ -6,11 +6,13 @@
 \usage{
 stdglm(
   y,
+  family = "gaussian",
   X,
   Z = NULL,
   offset = NULL,
   point.referenced = TRUE,
   random.walk = FALSE,
+  interaction = TRUE,
   blocks_indices = NULL,
   W,
   W_pred = NULL,
@@ -32,6 +34,8 @@ stdglm(
 \arguments{
 \item{y}{A \emph{p}-by-\emph{t} matrix corresponding to the response variable, where \emph{p} is the number of spatial locations and \emph{t} is the number of time points. Missing values (\code{NA}) are allowed.}
 
+\item{family}{A character string indicating the family of the response variable. Currently, only \code{"gaussian"} (default), \code{"poisson"}, and \code{"bernoulli"} are supported.}
+
 \item{X}{A \emph{p}-by-\emph{t}-by-\emph{ncovx} array corresponding to the covariates whose effects should vary across space and time.}
 
 \item{Z}{A \emph{p}-by-\emph{t}-by-\emph{ncovz} array corresponding to the covariates whose effects are constant across space and time. Defaults to \code{NULL}.}
@@ -41,6 +45,8 @@ stdglm(
 \item{point.referenced}{A logical indicating whether the data are point-referenced (TRUE) or areal (FALSE). Default is TRUE. If FALSE, predictions are not performed.}
 
 \item{random.walk}{A logical indicating whether the temporal dynamic should be modeled as a random walk (TRUE) or a first-order autoregressive process (FALSE). Default is FALSE.}
+
+\item{interaction}{A logical vector indicating whether to include the spatio-temporal interaction effect. Default is TRUE, meaning all covariates' effects are allowed to interact across space and time. If FALSE, no interactions are included. It is also possible to pass a logical vector of length \emph{ncovx} to select specific interactions.}
 
 \item{blocks_indices}{A list of integer vectors indicating the indices of the blocks for spatial predictions. Defaults to \code{NULL}, if no predictions are needed. See details.}
 
@@ -90,30 +96,34 @@ The posterior summaries in \code{ave} include:
 \item{Bspace_pred_postmean, Bspace_pred2_postmean}{First two moments of the spatial effect of varying coefficients at the predicted spatial locations.}
 \item{Bspacetime_pred_postmean, Bspacetime_pred2_postmean}{First two moments of the spatio-temporal effect of varying coefficients at the predicted spatial locations and all time points.}
 \item{B_pred2_c_t_s_st}{2nd moment of the varying coefficients, \eqn{\beta_{it}}, at the predicted spatial locations and all time points.}
-\item{Eta_tilde_mean}{Posterior mean of the linear predictor (for non-gaussian outcomes).}
-\item{thetay_mean}{Noise-free version of Eta_tilde_mean. Note also that \code{thetay_mean = meanY1mean + meanZmean + offset}}
 \item{meanY1mean}{Contribution of covariates with varying coefficients.}
 \item{meanZmean}{Contribution of covariates with non-varying effects.}
+\item{thetay_mean}{It is defined as \code{thetay_mean = meanY1mean + meanZmean + offset}.}
+\item{Eta_tilde_mean}{Posterior mean of the linear predictor (for non-gaussian outcomes). For Poisson outcomes, it is defined as \code{Eta_tilde_mean = thetay_mean + epsilon}, where \code{epsilon} is a Gaussian error term. For Bernoulli outcomes, it is obtained by drawing from a truncated normal distribution with mean \code{thetay_mean}.}
 \item{DIC, Dbar, pD}{Deviance Information Criterion, \eqn{DIC = \bar{D} + pD}.}
 \item{WAIC, se_WAIC, pWAIC, se_pWAIC, elpd, se_elpd}{Widely Applicable Information Criterion, the penalty term, and expected log pointwise predictive density. The prefix \code{se_} denotes standard errors. See Gelman et al. (2014).}
 \item{CRPS}{Continuous Ranked Probability Score, as defined in Gschlößl & Czado (2007).}
 \item{PMCC}{Predictive model choice criterion proposed by Gelfand & Ghosh (1998).}
 \item{pvalue_*}{Bayesian p-values, see \url{https://czaccard.github.io/STDGLM/articles/model_output.html}.}
+\item{AccRate}{Point-wise acceptance rate for the random-walk Metropolis-Hastings step (if \code{family=="poisson"}).}
 }
+
+Note that the criteria above (DIC, WAIC, etc.) are computed only for the non-missing values of the response variable.
 
 The MCMC chains included in \code{out} are:
 \describe{
-\item{sigma2}{Measurement error variance.}
+\item{sigma2}{Measurement error variance. For Bernoulli outcomes, it is fixed to 1.}
 \item{sigma2_Btime}{A \emph{J}-by-\code{nrep} matrix with the variance of the innovation of the temporal effects for j=1,...,J. The j-th row corresponds to the temporal effect of the j-th varying coefficient.}
 \item{rho1_space, rho2_space}{\emph{J}-by-\code{nrep} matrices with spatial correlation parameters. The j-th row corresponds to the spatial effect of the j-th varying coefficient.}
 \item{rho1_spacetime, rho2_spacetime}{\emph{J}-by-\code{nrep} matrices with the correlation parameters of spatially-structured innovations in the spatio-temporal effects. The j-th row corresponds to the spatio-temporal effect of the j-th varying coefficient.}
+\item{phi_AR1_time, phi_AR1_spacetime}{\emph{J}-by-\code{nrep} matrices with the AR(1) coefficients for the temporal effects for j=1,...,J. The j-th row corresponds to the temporal effect of the j-th varying coefficient. If \code{random.walk==TRUE}, it is \code{NULL}.}
 \item{gamma}{Regression coefficients related to the covariates with non-varying effects.}
 \item{loglik}{Pointwise log-likelihood, if \code{keepLogLik = TRUE}.}
 \item{fitted}{Draws from the posterior predictive distribution for the observed data points, if \code{keepY = TRUE}.}
 \item{Ypred}{Draws from the posterior predictive distribution for the out-of-sample data points, if \code{keepY = TRUE}.}
-\item{RMSE}{In-sample Root Mean Squared Error.}
-\item{MAE}{In-sample Mean Absolute Error.}
-\item{chi_sq_pred_, chi_sq_obs_}{Chi-square statistics (i.e., sum of squared Pearson residuals) for predicted and observed values.}
+\item{RMSE}{In-sample Root Mean Squared Error, if \code{family != "bernoulli"}.}
+\item{MAE}{In-sample Mean Absolute Error, if \code{family != "bernoulli"}.}
+\item{chi_sq_pred_, chi_sq_fitted_}{Chi-square statistics (i.e., sum of squared Pearson residuals) for predicted and fitted values.}
 }
 \code{out} contains also other elements needed for restarting.
 }
@@ -124,7 +134,7 @@ This function executes the Markov Chain Monte Carlo (MCMC) algorithm for STDGLMs
 At the moment, only Gaussian outcomes are supported. The fitted model has the following form:
 \deqn{y_{it} = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)}
 \deqn{\boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J}
-where \eqn{\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p}.
+where \eqn{\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p} and \eqn{J=ncovx}.
 
 The function allows for the decomposition of the state vector into components that can be interpreted as contributions from different sources of variability, that is:
 \deqn{\beta_{it} = \overline{\beta} + \beta_{i}^{(\mathsf{S})} + \beta_{t}^{(\mathsf{T})} + \beta_{it}^{(\mathsf{ST})}}
@@ -139,12 +149,17 @@ See the package vignette for more details.
 
 \code{prior} must be a named list with these elements:
 \describe{
-\item{V_beta_0}{A scalar defining the prior variance for the initial state of the time-varying coefficients, related to the covariates in \code{X}.}
-\item{V_gamma}{A scalar defining the prior variance for the initial state of the constant coefficients, related to the covariates in \code{Z}. Assign a value even if \code{Z} is \code{NULL}.}
-\item{a1}{A scalar defining the inverse-gamma prior shape for the temporal variance of the time-varying coefficients.}
-\item{b1}{A scalar defining the inverse-gamma prior rate for the temporal variance of the time-varying coefficients.}
-\item{s2_a}{A scalar defining the inverse-gamma prior shape for the measurement error variance.}
-\item{s2_b}{A scalar defining the inverse-gamma prior rate for the measurement error variance.}
+\item{V_beta_0}{Either a scalar or numeric vector defining the prior variance for the initial state of the time-varying coefficients, related to the covariates in \code{X}. If it is a vector, it must be of length equal to \emph{ncovx}, the number of covariates in \code{X}.}
+\item{V_gamma}{A scalar defining the prior variance for the initial state of the constant coefficients, i.e. the constant effects of covariates in \code{X} \emph{and} those related to the covariates in \code{Z}.}
+\item{a_inn_time}{Either a scalar or numeric vector defining the inverse-gamma prior shape for the temporal innovation variance of the time-varying coefficients. If it is a vector, it must be of length equal to \emph{ncovx}, the number of covariates in \code{X}.}
+\item{b_inn_time}{Either a scalar or numeric vector defining the inverse-gamma prior rate for the temporal innovation variance of the time-varying coefficients. If it is a vector, it must be of length equal to \emph{ncovx}, the number of covariates in \code{X}.}
+\item{a_rho1s}{Either a scalar or numeric vector defining the inverse-gamma prior shape for the partial sill of the spatial effects. If it is a vector, it must be of length equal to \emph{ncovx}, the number of covariates in \code{X}.}
+\item{b_rho1s}{Either a scalar or numeric vector defining the inverse-gamma prior rate for the partial sill of the spatial effects. If it is a vector, it must be of length equal to \emph{ncovx}, the number of covariates in \code{X}.}
+\item{a_rho1st}{Either a scalar or numeric vector defining the inverse-gamma prior shape for the partial sill of the spatio-temporal effects (if \code{interaction==TRUE}). If it is a vector, it must be of length equal to \emph{ncovx}, the number of covariates in \code{X}.}
+\item{b_rho1st}{Either a scalar or numeric vector defining the inverse-gamma prior rate for the partial sill of the spatio-temporal effects (if \code{interaction==TRUE}). If it is a vector, it must be of length equal to \emph{ncovx}, the number of covariates in \code{X}.}
+\item{s2_a}{A scalar defining the inverse-gamma prior shape for the measurement error variance (if \code{family!="bernoulli"}).}
+\item{s2_b}{A scalar defining the inverse-gamma prior rate for the measurement error variance (if \code{family!="bernoulli"}).}
+\item{ctuning}{A scalar defining the tuning parameter for the random walk proposal distribution (if \code{family=="poisson"}).}
 }
 
 Out-of-sample predictions are performed only if \code{point.referenced} is \code{TRUE} and \code{W_pred} is provided. For spatial interpolation of space-varying coefficients, computations are performed block-wise. \code{blocks_indices} is a list of disjoint sets of indices specifying the block membership of each new spatial location. The b-th element of the list has \emph{p_b} new spatial locations, and the total number of new spatial locations is \emph{p_new}, given by the sum of \emph{p_b} over all blocks. \code{W_pred} and \code{W_cross} must be lists of length equal to \code{length(blocks_indices)}. To perform computations in parallel, \code{ncores} must be greater than 1. \cr

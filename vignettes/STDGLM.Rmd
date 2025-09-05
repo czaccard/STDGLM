@@ -147,15 +147,15 @@ The model is completed with the following priors (again, dropping the subscript 
     \boldsymbol{\beta}_{0}^{(\mathsf{ST})} &\sim N_p(0, V_{\beta_0} \boldsymbol{I}_p) \\
     \boldsymbol{\gamma} &\sim N_q(0, V_\gamma) \\
     \sigma_\epsilon^2 &\sim IG(a_\epsilon, b_\epsilon) \\
-    \rho_1^{(\mathsf{S})} &\sim IG(0.01, 0.01) \\
-    \rho_2^{(\mathsf{S})} &\sim U(a_\rho, b_\rho) \\
-    \rho_1^{(\mathsf{ST})} &\sim IG(0.01, 0.01) \\
-    \rho_2^{(\mathsf{ST})} &\sim U(a_\rho, b_\rho) \\
+    \rho_1^{(\mathsf{S})} &\sim IG(a_{\rho, S}, b_{\rho, S}) \\
+    \rho_2^{(\mathsf{S})} &\sim U(min_\rho, max_\rho) \\
+    \rho_1^{(\mathsf{ST})} &\sim IG(a_{\rho, ST}, b_{\rho, ST}) \\
+    \rho_2^{(\mathsf{ST})} &\sim U(min_\rho, max_\rho) \\
     \phi^{(\mathsf{T})} &\sim TN_{(-1, 1)}(0, 1) \\
     \phi^{(\mathsf{ST})} &\sim TN_{(-1, 1)}(0, 1) \\
     V_\beta^{(\mathsf{T})} &\sim IG(a^{(\mathsf{T})}, b^{(\mathsf{T})})
 \end{align*}
-where $TN_{(q, r)}(\mu, \sigma^2)$ denotes a normal distribution with mean $\mu$ and variance $\sigma^2$ truncated to the interval $(q, r)$. The hyperparameters $a_\rho$ and $b_\rho$ depend on the type of spatial data. If the data are point-referenced, they are set based on the minimum and maximum distances between points, respectively. If the data are areal, $a_\rho= 0.1$ and $b_\rho \rightarrow 1$.
+where $TN_{(q, r)}(\mu, \sigma^2)$ denotes a normal distribution with mean $\mu$ and variance $\sigma^2$ truncated to the interval $(q, r)$. The hyperparameters $min_\rho$ and $max_\rho$ depend on the type of spatial data. If the data are point-referenced, they are set to the minimum and maximum distances between points divided by 3, respectively. If the data are areal, $min_\rho= 0.1$ and $max_\rho \rightarrow 1$.
 
 Note that the spacetime-varying coefficients are assumed independent a priori across $j=1,\dots,J$.
 

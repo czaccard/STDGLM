@@ -204,7 +204,7 @@ coef.stdglm <- function(object, type = 'overall', ...) {
       Bmean = object$ave$Btime_postmean[1,,k]
       Bsd = sqrt(object$ave$Btime2_postmean[1,,k] - object$ave$Btime_postmean[1,,k]^2)
       df = data.frame(Coef= paste0('beta', k-1), Time=1:length(Bmean), 
-                      Mean=Bmean,
+                      Mean=Bmean, sd = Bsd,
                       ci_low = Bmean - q*Bsd, ci_high = Bmean + q*Bsd)
       out = rbind(out, df)
     }
@@ -216,7 +216,7 @@ coef.stdglm <- function(object, type = 'overall', ...) {
       Bmean = object$ave$Bspace_postmean[,1,k]
       Bsd = sqrt(object$ave$Bspace2_postmean[,1,k] - object$ave$Bspace_postmean[,1,k]^2)
       df = data.frame(Coef= paste0('beta', k-1), Space=1:length(Bmean), 
-                      Mean=Bmean,
+                      Mean=Bmean, sd = Bsd,
                       ci_low = Bmean - q*Bsd, ci_high = Bmean + q*Bsd)
       out = rbind(out, df)
     }
@@ -230,6 +230,7 @@ coef.stdglm <- function(object, type = 'overall', ...) {
 
       df = expand.grid(Coef= paste0('beta', k-1), Space=1:NROW(Bmean), Time=1:NCOL(Bmean))
       df$Mean=as.vector(Bmean)
+      df$sd = as.vector(Bsd)
       df$ci_low = as.vector(Bmean - q*Bsd)
       df$ci_high = as.vector(Bmean + q*Bsd)
       out = rbind(out, df)
@@ -238,7 +239,8 @@ coef.stdglm <- function(object, type = 'overall', ...) {
   } else if (type == 'gamma') {
     gamma = rowMeans(object$out$gamma)
     sdb_gamma = apply(object$out$gamma, 1, stats::sd)
-    out = data.frame(Mean=gamma, ci_low=gamma - q*sdb_gamma, 
+    out = data.frame(Mean=gamma, sd = sdb_gamma,
+                     ci_low=gamma - q*sdb_gamma, 
                      ci_high=gamma + q*sdb_gamma)
     return(out)
   } else {
@@ -282,11 +284,12 @@ plot_tvc = function(mod) {
   return(gg)
 }
 
-plot_svc = function(mod, Coo_sf_obs, region, Coo_sf_pred=NULL) {
+plot_svc = function(mod, Coo_sf_obs, region=NULL, Coo_sf_pred=NULL) {
   ave <- mod$ave
   ncov = dim(ave$Bspace_postmean)[3]
   q = stats::qnorm(.975)
-  
+  geom_types = as.character(sf::st_geometry_type(Coo_sf_obs)[1])
+
   gg = list()
   for (k in 1:ncov) {
     Coo_sf = Coo_sf_obs
@@ -309,14 +312,24 @@ plot_svc = function(mod, Coo_sf_obs, region, Coo_sf_pred=NULL) {
     }
     Coo_sf$pred = factor(Coo_sf$pred, levels = c(0, 1), labels = c('Observed', 'Predicted'))
     
-    gg1 = ggplot2::ggplot() +
-      ggplot2::geom_sf(data = region, fill='white') +
-      ggplot2::geom_sf(ggplot2::aes(col=Bmean, shape=pred), Coo_sf, size=4) +
-      ggplot2::labs(title = paste('Spatial Effect of beta', k-1), color = 'Mean')
-    gg2 = ggplot2::ggplot() +
-      ggplot2::geom_sf(data = region, fill='white') +
-      ggplot2::geom_sf(ggplot2::aes(col=Bsd, shape=pred), Coo_sf, size=4) +
-      ggplot2::labs(title = paste('Spatial Effect of beta', k-1), color = 'Std. Dev')
+    gg1 = ggplot2::ggplot()
+    if (!is.null(region))
+      gg1 = gg1 + ggplot2::geom_sf(data = region, fill='white')
+    if (endsWith(geom_types, "POINT")) {
+      gg1 = gg1 + ggplot2::geom_sf(ggplot2::aes(col=Bmean, shape=pred), Coo_sf, size=4)
+    } else {
+      gg1 = gg1 + ggplot2::geom_sf(ggplot2::aes(fill=Bmean), Coo_sf)
+    }
+    gg1 = gg1 + ggplot2::labs(title = paste('Spatial Effect of beta', k-1), color = 'Mean')
+    gg2 = ggplot2::ggplot()
+    if (!is.null(region))
+      gg2 = gg2 + ggplot2::geom_sf(data = region, fill='white')
+    if (endsWith(geom_types, "POINT")) {
+      gg2 = gg2 + ggplot2::geom_sf(ggplot2::aes(col=Bsd, shape=pred), Coo_sf, size=4)
+    } else {
+      gg2 = gg2 + ggplot2::geom_sf(ggplot2::aes(fill=Bsd), Coo_sf)
+    }
+    gg2 = gg2 + ggplot2::labs(title = paste('Spatial Effect of beta', k-1), color = 'Std. Dev')
     gg[[k]] = ggpubr::ggarrange(gg1, gg2, nrow = 1, ncol = 2)
   }
   return(gg)

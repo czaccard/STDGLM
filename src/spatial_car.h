@@ -170,8 +170,7 @@ inline Rcpp::List MH_spatial_correlation_CAR_fast(
   }
 
   if ((lpos.array() == -std::numeric_limits<double>::infinity()).all()) {
-    Rcpp::warning("All log-posterior values are -Inf. Returning middle of range.");
-    return (allowed_range(6));
+    Rcpp::stop("All log-posterior values are -Inf.");
   }
 
   double log_normalizer = log_sum_exp(lpos);

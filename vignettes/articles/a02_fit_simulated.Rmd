@@ -101,16 +101,20 @@ matplot(t(Y), type = 'l', main = 'Y', xlab = 'Time')
 
 # Model Fitting
 
-Before fitting the model, we need to prepare a list of prior hyperparameters. Here, we assume vague priors for all the parameters. These are also the default values used when `prior=NULL` in the `stdglm` function.
+Before fitting the model, we need to prepare a list of prior hyperparameters. Here, we assume vague priors for all the parameters. These are also the default values used when `prior=NULL`.
 
 ```{r, eval = ev_}
 prior_list = list(
-  V_beta_0 = 1e4, # Prior variance of initial state
-  V_gamma = 1e6,  # Prior variance of constant coefficients
-  a1 = 0.01,      # Prior shape for temporal variance
-  b1 = 0.01,      # Prior rate for temporal variance
-  s2_a = 0.01,    # Prior shape for measurement error variance
-  s2_b = 0.01     # Prior rate for measurement error variance
+  V_beta_0 = 1e4,         # Prior variance of initial state
+  V_gamma = 1e6,          # Prior variance of constant coefficients
+  a_inn_time = 0.01,      # Prior shape for temporal variance
+  b_inn_time = 0.01,      # Prior rate for temporal variance
+  a_rho1s = 0.01,         # Prior shape for spatial variance
+  b_rho1s = 0.01,         # Prior rate for spatial variance
+  a_rho1st = 0.01,        # Prior shape for spatio-temporal variance
+  b_rho1st = 0.01,        # Prior rate for spatio-temporal variance
+  s2_a = 0.01,            # Prior shape for measurement error variance
+  s2_b = 0.01             # Prior rate for measurement error variance
 )
 ```
 
