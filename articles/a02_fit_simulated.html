@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">STDGLM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -97,6 +97,11 @@ generalized linear model (STDGLM) to simulated data using the
 <span><span class="co">#&gt; Loading required package: ggplot2</span></span>
 <span><span class="co">#&gt; Loading required package: tidyr</span></span>
 <span><span class="co">#&gt; Loading required package: ggpubr</span></span>
+<span><span class="co">#&gt; Loading required package: coda</span></span>
+<span><span class="co">#&gt; Warning in library(package, lib.loc = lib.loc, character.only = TRUE,</span></span>
+<span><span class="co">#&gt; logical.return = TRUE, : there is no package called 'coda'</span></span>
+<span><span class="co">#&gt; Installing package into '/home/runner/work/_temp/Library'</span></span>
+<span><span class="co">#&gt; (as 'lib' is unspecified)</span></span>
 <span><span class="co">#&gt; Loading required package: coda</span></span>
 <span><span class="co">#&gt; Loading required package: sf</span></span>
 <span><span class="co">#&gt; Linking to GEOS 3.12.1, GDAL 3.8.4, PROJ 9.4.0; sf_use_s2() is TRUE</span></span></code></pre></div>
@@ -174,16 +179,19 @@ distributed with mean zero and variance
 </h2>
 <p>Before fitting the model, we need to prepare a list of prior
 hyperparameters. Here, we assume vague priors for all the parameters.
-These are also the default values used when <code>prior=NULL</code> in
-the <code>stdglm</code> function.</p>
+These are also the default values used when <code>prior=NULL</code>.</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">prior_list</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  V_beta_0 <span class="op">=</span> <span class="fl">1e4</span>, <span class="co"># Prior variance of initial state</span></span>
-<span>  V_gamma <span class="op">=</span> <span class="fl">1e6</span>,  <span class="co"># Prior variance of constant coefficients</span></span>
-<span>  a1 <span class="op">=</span> <span class="fl">0.01</span>,      <span class="co"># Prior shape for temporal variance</span></span>
-<span>  b1 <span class="op">=</span> <span class="fl">0.01</span>,      <span class="co"># Prior rate for temporal variance</span></span>
-<span>  s2_a <span class="op">=</span> <span class="fl">0.01</span>,    <span class="co"># Prior shape for measurement error variance</span></span>
-<span>  s2_b <span class="op">=</span> <span class="fl">0.01</span>     <span class="co"># Prior rate for measurement error variance</span></span>
+<span>  V_beta_0 <span class="op">=</span> <span class="fl">1e4</span>,         <span class="co"># Prior variance of initial state</span></span>
+<span>  V_gamma <span class="op">=</span> <span class="fl">1e6</span>,          <span class="co"># Prior variance of constant coefficients</span></span>
+<span>  a_inn_time <span class="op">=</span> <span class="fl">0.01</span>,      <span class="co"># Prior shape for temporal variance</span></span>
+<span>  b_inn_time <span class="op">=</span> <span class="fl">0.01</span>,      <span class="co"># Prior rate for temporal variance</span></span>
+<span>  a_rho1s <span class="op">=</span> <span class="fl">0.01</span>,         <span class="co"># Prior shape for spatial variance</span></span>
+<span>  b_rho1s <span class="op">=</span> <span class="fl">0.01</span>,         <span class="co"># Prior rate for spatial variance</span></span>
+<span>  a_rho1st <span class="op">=</span> <span class="fl">0.01</span>,        <span class="co"># Prior shape for spatio-temporal variance</span></span>
+<span>  b_rho1st <span class="op">=</span> <span class="fl">0.01</span>,        <span class="co"># Prior rate for spatio-temporal variance</span></span>
+<span>  s2_a <span class="op">=</span> <span class="fl">0.01</span>,            <span class="co"># Prior shape for measurement error variance</span></span>
+<span>  s2_b <span class="op">=</span> <span class="fl">0.01</span>             <span class="co"># Prior rate for measurement error variance</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The MCMC setup is provided in the next chunk. You can adjust the
 number of iterations, burn-in period, thinning interval, and other
@@ -238,20 +246,20 @@ specific location.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fitted_values</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1]  30 100</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">fitted_values</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span>,<span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;        V1                V2               V3               V4          </span></span>
-<span><span class="co">#&gt;  Min.   :-7.5898   Min.   :-9.180   Min.   :-9.114   Min.   :-12.4280  </span></span>
-<span><span class="co">#&gt;  1st Qu.: 0.3714   1st Qu.: 1.604   1st Qu.: 2.415   1st Qu.:  0.6149  </span></span>
-<span><span class="co">#&gt;  Median : 4.1684   Median : 5.532   Median : 5.243   Median :  6.1201  </span></span>
-<span><span class="co">#&gt;  Mean   : 3.9380   Mean   : 4.895   Mean   : 4.742   Mean   :  5.0622  </span></span>
-<span><span class="co">#&gt;  3rd Qu.: 6.6549   3rd Qu.: 8.559   3rd Qu.: 7.697   3rd Qu.:  8.8485  </span></span>
-<span><span class="co">#&gt;  Max.   :16.4509   Max.   :14.601   Max.   :14.387   Max.   : 16.1828  </span></span>
+<span><span class="co">#&gt;        V1                V2               V3                V4          </span></span>
+<span><span class="co">#&gt;  Min.   :-8.1916   Min.   :-8.960   Min.   :-10.021   Min.   :-12.2259  </span></span>
+<span><span class="co">#&gt;  1st Qu.: 0.3895   1st Qu.: 1.924   1st Qu.:  2.185   1st Qu.:  0.6794  </span></span>
+<span><span class="co">#&gt;  Median : 4.4266   Median : 5.749   Median :  5.319   Median :  6.1380  </span></span>
+<span><span class="co">#&gt;  Mean   : 3.9777   Mean   : 4.908   Mean   :  4.701   Mean   :  5.0620  </span></span>
+<span><span class="co">#&gt;  3rd Qu.: 7.0135   3rd Qu.: 8.557   3rd Qu.:  7.865   3rd Qu.:  9.1050  </span></span>
+<span><span class="co">#&gt;  Max.   :16.4474   Max.   :14.193   Max.   : 14.411   Max.   : 16.1886  </span></span>
 <span><span class="co">#&gt;        V5         </span></span>
-<span><span class="co">#&gt;  Min.   :-11.600  </span></span>
-<span><span class="co">#&gt;  1st Qu.:  1.852  </span></span>
-<span><span class="co">#&gt;  Median :  4.973  </span></span>
-<span><span class="co">#&gt;  Mean   :  4.784  </span></span>
-<span><span class="co">#&gt;  3rd Qu.:  8.279  </span></span>
-<span><span class="co">#&gt;  Max.   : 19.706</span></span></code></pre></div>
+<span><span class="co">#&gt;  Min.   :-11.695  </span></span>
+<span><span class="co">#&gt;  1st Qu.:  1.686  </span></span>
+<span><span class="co">#&gt;  Median :  4.805  </span></span>
+<span><span class="co">#&gt;  Mean   :  4.739  </span></span>
+<span><span class="co">#&gt;  3rd Qu.:  8.387  </span></span>
+<span><span class="co">#&gt;  Max.   : 19.619</span></span></code></pre></div>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">mod</span>, Y<span class="op">=</span><span class="va">Y</span>, id<span class="op">=</span><span class="fl">1</span><span class="op">)</span> <span class="co"># pick a number between 1 and p</span></span></code></pre></div>
 <p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-13-1.png" width="700"></p>
@@ -271,13 +279,13 @@ the <code>coef</code> method. Here we show those of constant
 coefficients.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">mod</span>, <span class="st">'overall'</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;         Mean    ci_low    ci_high</span></span>
-<span><span class="co">#&gt; 1  6.3137500  6.258705  6.3687949</span></span>
-<span><span class="co">#&gt; 2  2.8937386  2.840712  2.9467654</span></span>
-<span><span class="co">#&gt; 3 -0.1233977 -0.178009 -0.0687864</span></span>
+<span><span class="co">#&gt;         Mean     ci_low     ci_high</span></span>
+<span><span class="co">#&gt; 1  6.3144261  6.2622660  6.36658616</span></span>
+<span><span class="co">#&gt; 2  2.9284035  2.8748444  2.98196262</span></span>
+<span><span class="co">#&gt; 3 -0.1093955 -0.1596674 -0.05912353</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">mod</span>, <span class="st">'gamma'</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;        Mean    ci_low  ci_high</span></span>
-<span><span class="co">#&gt; 1 0.8405103 0.7861577 0.894863</span></span></code></pre></div>
+<span><span class="co">#&gt;       Mean         sd    ci_low  ci_high</span></span>
+<span><span class="co">#&gt; 1 1.008869 0.02679042 0.9563603 1.061377</span></span></code></pre></div>
 <p>The <code>plot</code> method can also be used to visualize the
 time-varying, space-varying, and spacetime-varying coefficients. The
 returned object is a <code>ggplot</code> object. The label “Observed”
@@ -413,9 +421,9 @@ and Bayesian <em>p-values</em>. These are all described <a href="https://czaccar
 separate article</a>.</p>
 <div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">ave</span><span class="op">$</span><span class="va">DIC</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 11090.89</span></span>
+<span><span class="co">#&gt; [1] 10941.42</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">ave</span><span class="op">$</span><span class="va">WAIC</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 11118.57</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 10962.61</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">

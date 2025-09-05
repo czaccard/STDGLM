@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">STDGLM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9000</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,11 +46,13 @@
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">stdglm</span><span class="op">(</span></span>
 <span>  <span class="va">y</span>,</span>
+<span>  family <span class="op">=</span> <span class="st">"gaussian"</span>,</span>
 <span>  <span class="va">X</span>,</span>
 <span>  Z <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  offset <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  point.referenced <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  random.walk <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  interaction <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  blocks_indices <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">W</span>,</span>
 <span>  W_pred <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -78,6 +80,10 @@
 <dd><p>A <em>p</em>-by-<em>t</em> matrix corresponding to the response variable, where <em>p</em> is the number of spatial locations and <em>t</em> is the number of time points. Missing values (<code>NA</code>) are allowed.</p></dd>
 
 
+<dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
+<dd><p>A character string indicating the family of the response variable. Currently, only <code>"gaussian"</code> (default), <code>"poisson"</code>, and <code>"bernoulli"</code> are supported.</p></dd>
+
+
 <dt id="arg-x">X<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
 <dd><p>A <em>p</em>-by-<em>t</em>-by-<em>ncovx</em> array corresponding to the covariates whose effects should vary across space and time.</p></dd>
 
@@ -96,6 +102,10 @@
 
 <dt id="arg-random-walk">random.walk<a class="anchor" aria-label="anchor" href="#arg-random-walk"></a></dt>
 <dd><p>A logical indicating whether the temporal dynamic should be modeled as a random walk (TRUE) or a first-order autoregressive process (FALSE). Default is FALSE.</p></dd>
+
+
+<dt id="arg-interaction">interaction<a class="anchor" aria-label="anchor" href="#arg-interaction"></a></dt>
+<dd><p>A logical vector indicating whether to include the spatio-temporal interaction effect. Default is TRUE, meaning all covariates' effects are allowed to interact across space and time. If FALSE, no interactions are included. It is also possible to pass a logical vector of length <em>ncovx</em> to select specific interactions.</p></dd>
 
 
 <dt id="arg-blocks-indices">blocks_indices<a class="anchor" aria-label="anchor" href="#arg-blocks-indices"></a></dt>
@@ -198,17 +208,17 @@
 <dt>B_pred2_c_t_s_st</dt>
 <dd><p>2nd moment of the varying coefficients, \(\beta_{it}\), at the predicted spatial locations and all time points.</p></dd>
 
-<dt>Eta_tilde_mean</dt>
-<dd><p>Posterior mean of the linear predictor (for non-gaussian outcomes).</p></dd>
-
-<dt>thetay_mean</dt>
-<dd><p>Noise-free version of Eta_tilde_mean. Note also that <code>thetay_mean = meanY1mean + meanZmean + offset</code></p></dd>
-
 <dt>meanY1mean</dt>
 <dd><p>Contribution of covariates with varying coefficients.</p></dd>
 
 <dt>meanZmean</dt>
 <dd><p>Contribution of covariates with non-varying effects.</p></dd>
+
+<dt>thetay_mean</dt>
+<dd><p>It is defined as <code>thetay_mean = meanY1mean + meanZmean + offset</code>.</p></dd>
+
+<dt>Eta_tilde_mean</dt>
+<dd><p>Posterior mean of the linear predictor (for non-gaussian outcomes). For Poisson outcomes, it is defined as <code>Eta_tilde_mean = thetay_mean + epsilon</code>, where <code>epsilon</code> is a Gaussian error term. For Bernoulli outcomes, it is obtained by drawing from a truncated normal distribution with mean <code>thetay_mean</code>.</p></dd>
 
 <dt>DIC, Dbar, pD</dt>
 <dd><p>Deviance Information Criterion, \(DIC = \bar{D} + pD\).</p></dd>
@@ -225,9 +235,13 @@
 <dt>pvalue_*</dt>
 <dd><p>Bayesian p-values, see <a href="https://czaccard.github.io/STDGLM/articles/model_output.html">https://czaccard.github.io/STDGLM/articles/model_output.html</a>.</p></dd>
 
+<dt>AccRate</dt>
+<dd><p>Point-wise acceptance rate for the random-walk Metropolis-Hastings step (if <code>family=="poisson"</code>).</p></dd>
 
-</dl><p>The MCMC chains included in <code>out</code> are:</p><dl><dt>sigma2</dt>
-<dd><p>Measurement error variance.</p></dd>
+
+</dl><p>Note that the criteria above (DIC, WAIC, etc.) are computed only for the non-missing values of the response variable.</p>
+<p>The MCMC chains included in <code>out</code> are:</p><dl><dt>sigma2</dt>
+<dd><p>Measurement error variance. For Bernoulli outcomes, it is fixed to 1.</p></dd>
 
 <dt>sigma2_Btime</dt>
 <dd><p>A <em>J</em>-by-<code>nrep</code> matrix with the variance of the innovation of the temporal effects for j=1,...,J. The j-th row corresponds to the temporal effect of the j-th varying coefficient.</p></dd>
@@ -237,6 +251,9 @@
 
 <dt>rho1_spacetime, rho2_spacetime</dt>
 <dd><p><em>J</em>-by-<code>nrep</code> matrices with the correlation parameters of spatially-structured innovations in the spatio-temporal effects. The j-th row corresponds to the spatio-temporal effect of the j-th varying coefficient.</p></dd>
+
+<dt>phi_AR1_time, phi_AR1_spacetime</dt>
+<dd><p><em>J</em>-by-<code>nrep</code> matrices with the AR(1) coefficients for the temporal effects for j=1,...,J. The j-th row corresponds to the temporal effect of the j-th varying coefficient. If <code>random.walk==TRUE</code>, it is <code>NULL</code>.</p></dd>
 
 <dt>gamma</dt>
 <dd><p>Regression coefficients related to the covariates with non-varying effects.</p></dd>
@@ -251,13 +268,13 @@
 <dd><p>Draws from the posterior predictive distribution for the out-of-sample data points, if <code>keepY = TRUE</code>.</p></dd>
 
 <dt>RMSE</dt>
-<dd><p>In-sample Root Mean Squared Error.</p></dd>
+<dd><p>In-sample Root Mean Squared Error, if <code>family != "bernoulli"</code>.</p></dd>
 
 <dt>MAE</dt>
-<dd><p>In-sample Mean Absolute Error.</p></dd>
+<dd><p>In-sample Mean Absolute Error, if <code>family != "bernoulli"</code>.</p></dd>
 
-<dt>chi_sq_pred_, chi_sq_obs_</dt>
-<dd><p>Chi-square statistics (i.e., sum of squared Pearson residuals) for predicted and observed values.</p></dd>
+<dt>chi_sq_pred_, chi_sq_fitted_</dt>
+<dd><p>Chi-square statistics (i.e., sum of squared Pearson residuals) for predicted and fitted values.</p></dd>
 
 
 </dl><p><code>out</code> contains also other elements needed for restarting.</p>
@@ -267,7 +284,7 @@
     <p>At the moment, only Gaussian outcomes are supported. The fitted model has the following form:
 $$y_{it} = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)$$
 $$\boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J$$
-where \(\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p\).</p>
+where \(\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p\) and \(J=ncovx\).</p>
 <p>The function allows for the decomposition of the state vector into components that can be interpreted as contributions from different sources of variability, that is:
 $$\beta_{it} = \overline{\beta} + \beta_{i}^{(\mathsf{S})} + \beta_{t}^{(\mathsf{T})} + \beta_{it}^{(\mathsf{ST})}$$
 where:</p><dl><dt>\(\overline{\beta}\)</dt>
@@ -285,22 +302,37 @@ where:</p><dl><dt>\(\overline{\beta}\)</dt>
 
 </dl><p>See the package vignette for more details.</p>
 <p><code>prior</code> must be a named list with these elements:</p><dl><dt>V_beta_0</dt>
-<dd><p>A scalar defining the prior variance for the initial state of the time-varying coefficients, related to the covariates in <code>X</code>.</p></dd>
+<dd><p>Either a scalar or numeric vector defining the prior variance for the initial state of the time-varying coefficients, related to the covariates in <code>X</code>. If it is a vector, it must be of length equal to <em>ncovx</em>, the number of covariates in <code>X</code>.</p></dd>
 
 <dt>V_gamma</dt>
-<dd><p>A scalar defining the prior variance for the initial state of the constant coefficients, related to the covariates in <code>Z</code>. Assign a value even if <code>Z</code> is <code>NULL</code>.</p></dd>
+<dd><p>A scalar defining the prior variance for the initial state of the constant coefficients, i.e. the constant effects of covariates in <code>X</code> <em>and</em> those related to the covariates in <code>Z</code>.</p></dd>
 
-<dt>a1</dt>
-<dd><p>A scalar defining the inverse-gamma prior shape for the temporal variance of the time-varying coefficients.</p></dd>
+<dt>a_inn_time</dt>
+<dd><p>Either a scalar or numeric vector defining the inverse-gamma prior shape for the temporal innovation variance of the time-varying coefficients. If it is a vector, it must be of length equal to <em>ncovx</em>, the number of covariates in <code>X</code>.</p></dd>
 
-<dt>b1</dt>
-<dd><p>A scalar defining the inverse-gamma prior rate for the temporal variance of the time-varying coefficients.</p></dd>
+<dt>b_inn_time</dt>
+<dd><p>Either a scalar or numeric vector defining the inverse-gamma prior rate for the temporal innovation variance of the time-varying coefficients. If it is a vector, it must be of length equal to <em>ncovx</em>, the number of covariates in <code>X</code>.</p></dd>
+
+<dt>a_rho1s</dt>
+<dd><p>Either a scalar or numeric vector defining the inverse-gamma prior shape for the partial sill of the spatial effects. If it is a vector, it must be of length equal to <em>ncovx</em>, the number of covariates in <code>X</code>.</p></dd>
+
+<dt>b_rho1s</dt>
+<dd><p>Either a scalar or numeric vector defining the inverse-gamma prior rate for the partial sill of the spatial effects. If it is a vector, it must be of length equal to <em>ncovx</em>, the number of covariates in <code>X</code>.</p></dd>
+
+<dt>a_rho1st</dt>
+<dd><p>Either a scalar or numeric vector defining the inverse-gamma prior shape for the partial sill of the spatio-temporal effects (if <code>interaction==TRUE</code>). If it is a vector, it must be of length equal to <em>ncovx</em>, the number of covariates in <code>X</code>.</p></dd>
+
+<dt>b_rho1st</dt>
+<dd><p>Either a scalar or numeric vector defining the inverse-gamma prior rate for the partial sill of the spatio-temporal effects (if <code>interaction==TRUE</code>). If it is a vector, it must be of length equal to <em>ncovx</em>, the number of covariates in <code>X</code>.</p></dd>
 
 <dt>s2_a</dt>
-<dd><p>A scalar defining the inverse-gamma prior shape for the measurement error variance.</p></dd>
+<dd><p>A scalar defining the inverse-gamma prior shape for the measurement error variance (if <code>family!="bernoulli"</code>).</p></dd>
 
 <dt>s2_b</dt>
-<dd><p>A scalar defining the inverse-gamma prior rate for the measurement error variance.</p></dd>
+<dd><p>A scalar defining the inverse-gamma prior rate for the measurement error variance (if <code>family!="bernoulli"</code>).</p></dd>
+
+<dt>ctuning</dt>
+<dd><p>A scalar defining the tuning parameter for the random walk proposal distribution (if <code>family=="poisson"</code>).</p></dd>
 
 
 </dl><p>Out-of-sample predictions are performed only if <code>point.referenced</code> is <code>TRUE</code> and <code>W_pred</code> is provided. For spatial interpolation of space-varying coefficients, computations are performed block-wise. <code>blocks_indices</code> is a list of disjoint sets of indices specifying the block membership of each new spatial location. The b-th element of the list has <em>p_b</em> new spatial locations, and the total number of new spatial locations is <em>p_new</em>, given by the sum of <em>p_b</em> over all blocks. <code>W_pred</code> and <code>W_cross</code> must be lists of length equal to <code>length(blocks_indices)</code>. To perform computations in parallel, <code>ncores</code> must be greater than 1. <br>
