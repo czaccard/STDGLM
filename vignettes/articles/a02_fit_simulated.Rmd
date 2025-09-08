@@ -325,7 +325,7 @@ plot(mod, 'svc', coords_sf, region, coords_pred_sf)
 plot(mod, 'stvc', ids=c(1:9), pred = TRUE) # first 9 new locations
 ```
 
-The `predict` method can be used to easily access the posterior predictive summaries, for both the response variable, as shown below, the varying coefficients. The input `Coo_sf_pred` (optional) allows to return a simple feature object, which may be useful for plotting.
+The `predict` method can be used to easily access the posterior predictive summaries, for both the response variable, as shown below, and the varying coefficients. The input `Coo_sf_pred` (optional) allows to return a simple feature object, which may be useful for plotting.
 
 ```{r}
 Y_pred = predict(mod, type = 'response_df', Coo_sf_pred = coords_pred_sf)

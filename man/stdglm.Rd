@@ -97,7 +97,7 @@ The posterior summaries in \code{ave} include:
 \item{Bspacetime_pred_postmean, Bspacetime_pred2_postmean}{First two moments of the spatio-temporal effect of varying coefficients at the predicted spatial locations and all time points.}
 \item{B_pred2_c_t_s_st}{2nd moment of the varying coefficients, \eqn{\beta_{it}}, at the predicted spatial locations and all time points.}
 \item{meanY1mean}{Contribution of covariates with varying coefficients.}
-\item{meanZmean}{Contribution of covariates with non-varying effects.}
+\item{meanZmean}{Contribution of covariates with non-varying effects, if \code{Z} is not NULL.}
 \item{thetay_mean}{It is defined as \code{thetay_mean = meanY1mean + meanZmean + offset}.}
 \item{Eta_tilde_mean}{Posterior mean of the linear predictor (for non-gaussian outcomes). For Poisson outcomes, it is defined as \code{Eta_tilde_mean = thetay_mean + epsilon}, where \code{epsilon} is a Gaussian error term. For Bernoulli outcomes, it is obtained by drawing from a truncated normal distribution with mean \code{thetay_mean}.}
 \item{DIC, Dbar, pD}{Deviance Information Criterion, \eqn{DIC = \bar{D} + pD}.}
@@ -131,8 +131,9 @@ The MCMC chains included in \code{out} are:
 This function executes the Markov Chain Monte Carlo (MCMC) algorithm for STDGLMs, i.e. spatio-temporal dynamic (generalized) linear models.
 }
 \details{
-At the moment, only Gaussian outcomes are supported. The fitted model has the following form:
-\deqn{y_{it} = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)}
+The fitted model has the following form:
+\deqn{y_{it} \sim F}
+\deqn{\eta_{it} = g(E( y_{it} )) = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)}
 \deqn{\boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J}
 where \eqn{\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p} and \eqn{J=ncovx}.
 

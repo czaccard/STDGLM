@@ -194,7 +194,8 @@ coef.stdglm <- function(object, type = 'overall', ...) {
   if (type == 'overall') {
     b_overall = as.vector(object$ave$B_postmean)
     sdb_overall = sqrt(as.vector(object$ave$B2_postmean) - b_overall^2)
-    out = data.frame(Mean=b_overall, ci_low=b_overall - q*sdb_overall, 
+    out = data.frame(Mean=b_overall, sd = sdb_overall,
+                     ci_low=b_overall - q*sdb_overall, 
                      ci_high=b_overall+q*sdb_overall)
     return(out)
   } else if (type == 'tvc') {

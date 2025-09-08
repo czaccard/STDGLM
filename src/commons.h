@@ -252,8 +252,6 @@ Rcpp::List computeWAIC(const std::vector<Eigen::MatrixXd>& LL) {
 
 Rcpp::List computeWAIC(const std::vector<Eigen::MatrixXd>& LL, const std::vector<std::pair<int, int>>& valid_indices) {
 
-  const int p = LL[0].rows(); // number of space points
-  const int t = LL[0].cols(); // number of time points
   const int N = valid_indices.size(); // data points
   const int S = LL.size(); // number of samples
 

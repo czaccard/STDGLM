@@ -1,4 +1,6 @@
 url: https://czaccard.github.io/STDGLM/
 template:
   bootstrap: 5
+  light-switch: true
+  math-rendering: katex
 

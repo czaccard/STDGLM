@@ -64,13 +64,16 @@ mod <- stdglm(y=y, X=X, W=W)
 
 
 # Detailed Explanation on supported STDGLMs
-Let $p$ denote the number of *spatial units* (either georeferenced locations or areal units) where data is collected, and let $T$ denote the number of *time points*. As for the current version of the package (`0.0.0.9000`), only Gaussian outcomes are supported. Specifically only dynamic linear models (DLMs) with the following **observation equation** can be handled:
+Let $p$ denote the number of *spatial units* (either georeferenced locations or areal units) where data is collected, and let $T$ denote the number of *time points*. Generalized dynamic linear models (GDLMs) with the following **observation equation** can be handled:
 $$
-    y_{it} = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)
+    y_{it} \sim F \\
+    \eta_{it} = g\left(E\left( y_{it} \right)\right) = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)
 $$
 where:
 
-- \(y_{it}\) is the response variable at spatial unit $i=1, \dots, p$ and time $t=1, \dots, T$,
+- \(y_{it}\) is the response variable at spatial unit $i=1, \dots, p$ and time $t=1, \dots, T$, following an exponential family distribution $F$,
+
+- \(\eta_{it}\) is the corresponding linear predictor, defined using a non-linear link function $g(\cdot)$,
 
 - \(\boldsymbol{x}_{it} = (x_{1,it}, \dots, x_{J,it})'\) is a $J$-dimensional ($J\ge 1$) vector of covariates at spatial unit $i$ at time $t$ (an intercept may or may not be included here),
 
@@ -114,6 +117,10 @@ where $\boldsymbol{W}$ is a binary adjacency matrix, $\boldsymbol{D}_w$ is a dia
 In this case, the evolution error $\boldsymbol{\eta}_{j,t}$ follows a zero-mean PCAR process, and we will denote this as $\boldsymbol{\eta}_{j,t} \sim PCAR(0, \rho_{j,1}, \rho_{j,2})$.
 
 
+## Supported Distributions
+As for version `0.1.1`, the following distributions for the outcome are supported: Gaussian, Poisson, Bernoulli.
+
+
 ## ANOVA Decomposition of the State Vector
 The function `stdglm` allows for the decomposition of the state vector into components that can be interpreted as contributions from different sources of variability. Dropping the subscript $j$ for the sake of simplicity, the state vector $\beta_{it}$ is decomposed as follows:
 $$
@@ -131,7 +138,7 @@ where:
 
 
 ## Bayesian Hierarchical Structure
-The Bayesian model is as follows, for $t=1, \dots, T$ and $j=1, \dots, J$:
+For Gaussian outcomes, the Bayesian model is as follows, for $t=1, \dots, T$ and $j=1, \dots, J$ (generalization to other distributions is straightforward):
 \begin{align*}
     y_{it} &\sim N(\boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma}, \sigma_\epsilon^2) \\
     \boldsymbol{\beta}_{j,t} &= \boldsymbol{1}_p \overline{\beta}_j + \boldsymbol{\beta}_j^{(\mathsf{S})} + \boldsymbol{1}_p \beta_{j,t}^{(\mathsf{T})} + \boldsymbol{\beta}_{j,t}^{(\mathsf{ST})} \\

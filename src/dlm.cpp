@@ -238,7 +238,7 @@ Rcpp::List dlm_cpp(
     phi_ar1_space_time_draw = Eigen::VectorXd::Constant(ncovx, 0.5);
   }
   phi_ar1_space_time_draw.array() *= ST.array();
-
+  
   Eigen::MatrixXd Z_mat;
   int ncovz = 0;
   
@@ -435,15 +435,15 @@ Rcpp::List dlm_cpp(
       Rcpp::IntegerVector Bst_dims = Bst_array.attr("dim");
       
       for (int k = 0; k < ncovx; ++k) {
-        Btimedraw[k] = Eigen::Map<const Eigen::MatrixXd>(
+        Btimedraw[k] = Eigen::Map<Eigen::MatrixXd>(
           &Btime_array[0] + k * Btime_dims[0] * Btime_dims[1],
                                                           Btime_dims[0], Btime_dims[1]);
         
-        Bspacedraw[k] = Eigen::Map<const Eigen::MatrixXd>(
+        Bspacedraw[k] = Eigen::Map<Eigen::MatrixXd>(
           &Bspace_array[0] + k * Bspace_dims[0] * Bspace_dims[1],
                                                              Bspace_dims[0], Bspace_dims[1]);
         
-        Bspacetimedraw[k] = Eigen::Map<const Eigen::MatrixXd>(
+        Bspacetimedraw[k] = Eigen::Map<Eigen::MatrixXd>(
           &Bst_array[0] + k * Bst_dims[0] * Bst_dims[1],
                                                     Bst_dims[0], Bst_dims[1]);
       }
@@ -485,7 +485,7 @@ Rcpp::List dlm_cpp(
       Rcpp::IntegerVector Bdraw_dims = Bdraw_array.attr("dim");
 	    Bdraw_vec.resize(ncovx);
       for (int k = 0; k < ncovx; ++k) {
-        Bdraw[k] = Eigen::Map<const Eigen::MatrixXd>(
+        Bdraw[k] = Eigen::Map<Eigen::MatrixXd>(
           &Bdraw_array[0] + k * Bdraw_dims[0] * Bdraw_dims[1],
                                                           Bdraw_dims[0], Bdraw_dims[1]);
 		    Bdraw_vec(k) = Bdraw[k](0,0);
@@ -525,23 +525,28 @@ Rcpp::List dlm_cpp(
     }
     
     Eigen::MatrixXd BB=(basis_time*bml.tail(basis_time.cols())).reshaped(p, t);
-    Eigen::MatrixXd thetay_draw = offset + meanZ + BB;
+    Eigen::MatrixXd thetay_draw = offset + BB;
+    if (ncovz > 0) {
+      thetay_draw += meanZ;
+    }
     for (int k = 0; k < ncovx; ++k) {
       Bdraw[k](0,0) = Bdraw_vec(k);
       thetay_draw += X[k]*Bdraw_vec(k);
     }
-
+    
     double meanBB = BB.mean();
     Btimedraw[0] = BB.colwise().mean().array() - meanBB;
     Bspacedraw[0] = BB.rowwise().mean().array() - meanBB;
     Bspacetimedraw[0] = BB.array() - Btimedraw[0].replicate(p,1).array() - Bspacedraw[0].replicate(1,t).array() + meanBB;
-
-    Eigen::VectorXd Ht = Eigen::VectorXd::Constant(1, 0.001);
-    Eigen::MatrixXd Ctuning = Eigen::MatrixXd::Constant(1, 1, ctuning);
-    std::vector<Eigen::MatrixXd> AugData = augmented_data_poisson_lognormal(
-      Y, eta_tilde, thetay_draw, Ht, pswitch_Y, Ctuning);
-    eta_tilde = AugData[0];
-    eta_tilde_vec = Eigen::Map<Eigen::VectorXd>(eta_tilde.data(), eta_tilde.size());
+    
+    if (family == "poisson") {
+      Eigen::VectorXd Ht = Eigen::VectorXd::Constant(1, 0.001);
+      Eigen::MatrixXd Ctuning = Eigen::MatrixXd::Constant(1, 1, ctuning);
+      std::vector<Eigen::MatrixXd> AugData = augmented_data_poisson_lognormal(
+        Y, eta_tilde, thetay_draw, Ht, pswitch_Y, Ctuning);
+      eta_tilde = AugData[0];
+      eta_tilde_vec = Eigen::Map<Eigen::VectorXd>(eta_tilde.data(), eta_tilde.size());
+    }  
   }
   
   
@@ -701,7 +706,11 @@ Rcpp::List dlm_cpp(
   Eigen::MatrixXd Yfitted2_mean = Eigen::MatrixXd::Zero(p, t); // Sum of squares for variance
   Eigen::MatrixXd Eta_tilde_mean = Eigen::MatrixXd::Zero(p, t);
   Eigen::MatrixXd thetay_mean = Eigen::MatrixXd::Zero(p, t);
-  Eigen::MatrixXd meanZmean = Eigen::MatrixXd::Zero(p, t);
+  Eigen::MatrixXd meanZmean;
+  if (ncovz > 0) {
+    meanZmean.resize(p, t);
+    meanZmean.setZero();
+  }
   Eigen::MatrixXd meanY1mean = Eigen::MatrixXd::Zero(p, t);
   
   std::vector<Eigen::MatrixXd> B_postmean(ncovx, Eigen::MatrixXd::Zero(1, 1));
@@ -828,7 +837,7 @@ Rcpp::List dlm_cpp(
         Eigen::VectorXd y_k = y2_vec;
         for (int k2 = 0; k2 < ncovx; ++k2) {
           if (k == k2) continue;
-          y_k -= bigG2[k2] * Eigen::Map<const Eigen::VectorXd>(Bspacetimedraw[k2].data(), p * t);
+          y_k -= bigG2[k2] * Eigen::Map<Eigen::VectorXd>(Bspacetimedraw[k2].data(), p * t);
         }
         
         // Construct block-diagonal prior precision matrix invS_diag
@@ -899,7 +908,7 @@ Rcpp::List dlm_cpp(
     Eigen::VectorXd y2_reg = eta_tilde_vec - offset_vec;
     for (int k = 0; k < ncovx; ++k) {
       y2_reg -= bigG[k] * Btimedraw[k].transpose();
-      y2_reg -= bigG2[k] * Eigen::Map<const Eigen::VectorXd>(Bspacetimedraw[k].data(), p * t);
+      y2_reg -= bigG2[k] * Eigen::Map<Eigen::VectorXd>(Bspacetimedraw[k].data(), p * t);
       y2_reg -= bigG3[k] * Bspacedraw[k];
     }
         
@@ -940,11 +949,13 @@ Rcpp::List dlm_cpp(
     Eigen::MatrixXd current_meanY1 = Eigen::MatrixXd::Zero(p, t);
     
     for (int k = 0; k < ncovx; ++k) {
-      Eigen::MatrixXd B_c_full = Eigen::MatrixXd::Constant(p, t, Bdraw_vec(k));
-      Eigen::MatrixXd B_t_full = Btimedraw[k].colwise().replicate(p);  // 1 x t → p x t
-      Eigen::MatrixXd B_s_full = Bspacedraw[k].rowwise().replicate(t); // p x 1 → p x t
-      const Eigen::MatrixXd& B_st_full = Bspacetimedraw[k];
-      Eigen::ArrayXXd appoX_B = X[k].array() * (B_c_full + B_t_full + B_s_full + B_st_full).array();
+      Eigen::MatrixXd B_full = Eigen::MatrixXd::Constant(p, t, Bdraw_vec(k));
+      B_full.rowwise() += Btimedraw[k].row(0); //.colwise().replicate(p);
+      B_full.colwise() += Bspacedraw[k].col(0); //.rowwise().replicate(t);
+      if (ST(k) == 1.0) {
+        B_full += Bspacetimedraw[k];
+      }
+      Eigen::ArrayXXd appoX_B = X[k].array() * B_full.array();
       current_meanY1 += appoX_B.matrix();
     }
     
@@ -1014,7 +1025,10 @@ Rcpp::List dlm_cpp(
     
     
     // Step III: Sampling the measurement error variance
-    Eigen::MatrixXd thetay_draw = current_meanY1 + meanZ + offset;
+    Eigen::MatrixXd thetay_draw = current_meanY1 + offset;
+    if (ncovz > 0) {
+      thetay_draw += meanZ;
+    }
     Eigen::MatrixXd yhat = eta_tilde - thetay_draw;
     
     double precision_draw = 1.0;
@@ -1231,18 +1245,22 @@ Rcpp::List dlm_cpp(
 
         Eigen::MatrixXd meanY1_pred = Eigen::MatrixXd::Zero(p_new, t_new);
         for (int k = 0; k < ncovx; ++k) {
-          Eigen::MatrixXd B_c_pred_full = Eigen::MatrixXd::Constant(p_new, t_new, Bdraw_vec(k));
-          Eigen::MatrixXd B_t_pred_full = BBtimedraw[k].colwise().replicate(p_new);
-          Eigen::MatrixXd B_s_pred_full = Bspace_pred_draw[k].rowwise().replicate(t_new);
-          const Eigen::MatrixXd& B_st_pred_full = Bspacetime_pred_draw[k];
-          Eigen::ArrayXXd appoX_Bpred_ = X_pred[k].array() * (B_c_pred_full + B_t_pred_full + B_s_pred_full + B_st_pred_full).array();
+          Eigen::MatrixXd B_pred_full = Eigen::MatrixXd::Constant(p_new, t_new, Bdraw_vec(k));
+          if (h_ahead > 0) {
+            B_pred_full.rowwise() += BBtimedraw[k].row(0); //.colwise().replicate(p_new);
+          }
+          B_pred_full.colwise() += Bspace_pred_draw[k].col(0); //.rowwise().replicate(t_new);
+          if (ST(k) == 1.0) {
+            B_pred_full += Bspacetime_pred_draw[k];
+          }
+          Eigen::ArrayXXd appoX_Bpred_ = X_pred[k].array() * B_pred_full.array();
           meanY1_pred += appoX_Bpred_.matrix();
         }
 
         Eigen::MatrixXd meanZ_pred = Eigen::MatrixXd::Zero(p_new, t_new);
         if (ncovz > 0) {
           Eigen::VectorXd Zgamma_pred = Z_pred_mat * gamma_draw;
-          meanZ_pred = Eigen::Map<const Eigen::MatrixXd>(Zgamma_pred.data(), p_new, t_new);
+          meanZ_pred = Eigen::Map<Eigen::MatrixXd>(Zgamma_pred.data(), p_new, t_new);
         }
         Eigen::MatrixXd Ypred(p_new, t_new), eta_tilde_pred, thetay_pred = meanY1_pred + meanZ_pred + offset_pred;
         if (family == "gaussian") {
@@ -1389,7 +1407,9 @@ Rcpp::List dlm_cpp(
       Yfitted2_mean += Yfitted.array().square().matrix();
       Eta_tilde_mean += eta_tilde;
       thetay_mean += thetay_draw;
-      meanZmean += meanZ;
+      if (ncovz > 0) {
+        meanZmean += meanZ;
+      }
       meanY1mean += current_meanY1;
       
       for (int k = 0; k < ncovx; ++k) {
@@ -1480,7 +1500,9 @@ Rcpp::List dlm_cpp(
   ave_results["Yfitted2_mean"] = Yfitted2_mean / n_samples_collected;
   ave_results["Eta_tilde_mean"] = Eta_tilde_mean / n_samples_collected;
   ave_results["thetay_mean"] = thetay_mean / n_samples_collected;
-  ave_results["meanZmean"] = meanZmean / n_samples_collected;
+  if (ncovz > 0) {
+    ave_results["meanZmean"] = meanZmean / n_samples_collected;
+  }
   ave_results["meanY1mean"] = meanY1mean / n_samples_collected;
   
   // Convert vector of matrices to 3D arrays for R
