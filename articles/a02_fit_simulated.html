@@ -11,7 +11,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
-<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<!-- katex math --><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script><script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script><script src="../katex-auto.js"></script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -21,7 +22,7 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
+    <nav class="navbar navbar-expand-lg fixed-top " aria-label="Site navigation"><div class="container">
 
     <a class="navbar-brand me-2" href="../index.html">STDGLM</a>
 
@@ -41,6 +42,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/a01_model_output.html">Details on Model Output</a></li>
     <li><a class="dropdown-item" href="../articles/a02_fit_simulated.html">Simulated Data Analysis</a></li>
+    <li><a class="dropdown-item" href="../articles/a03_apulia_aq.html">Analysis of Apulia Air Quality Data</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -50,6 +52,14 @@
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/czaccard/STDGLM/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-lightswitch" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Light switch"><span class="fa fa-sun"></span></button>
+  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdown-lightswitch">
+<li><button class="dropdown-item" data-bs-theme-value="light"><span class="fa fa-sun"></span> Light</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="dark"><span class="fa fa-moon"></span> Dark</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="auto"><span class="fa fa-adjust"></span> Auto</button></li>
+  </ul>
+</li>
       </ul>
 </div>
 
@@ -98,25 +108,16 @@ generalized linear model (STDGLM) to simulated data using the
 <span><span class="co">#&gt; Loading required package: tidyr</span></span>
 <span><span class="co">#&gt; Loading required package: ggpubr</span></span>
 <span><span class="co">#&gt; Loading required package: coda</span></span>
-<span><span class="co">#&gt; Warning in library(package, lib.loc = lib.loc, character.only = TRUE,</span></span>
-<span><span class="co">#&gt; logical.return = TRUE, : there is no package called 'coda'</span></span>
-<span><span class="co">#&gt; Installing package into '/home/runner/work/_temp/Library'</span></span>
-<span><span class="co">#&gt; (as 'lib' is unspecified)</span></span>
-<span><span class="co">#&gt; Loading required package: coda</span></span>
 <span><span class="co">#&gt; Loading required package: sf</span></span>
 <span><span class="co">#&gt; Linking to GEOS 3.12.1, GDAL 3.8.4, PROJ 9.4.0; sf_use_s2() is TRUE</span></span></code></pre></div>
 <div class="section level2">
 <h2 id="data-generation">Data Generation<a class="anchor" aria-label="anchor" href="#data-generation"></a>
 </h2>
 <p>The following chunk generates some covariates. We randomly sample
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>30</mn></mrow><annotation encoding="application/x-tex">p=30</annotation></semantics></math>
-spatial locations within the unit square. At these locations, we
-generate
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">J=3</annotation></semantics></math>
-covariates (<code>X</code>) whose effects vary in spacetime, the first
-one being an intercept, and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">q=1</annotation></semantics></math>
-covariate (<code>z</code>) whose effect is held constant.</p>
+<span class="math inline">p=30</span> spatial locations within the unit
+square. At these locations, we generate <span class="math inline">J=3</span> covariates (<code>X</code>) whose effects
+vary in spacetime, the first one being an intercept, and <span class="math inline">q=1</span> covariate (<code>z</code>) whose effect
+is held constant.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">p</span> <span class="op">=</span> <span class="fl">30</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span></span>
@@ -163,8 +164,7 @@ covariate (<code>z</code>) whose effect is held constant.</p>
 <p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-6-3.png" width="700"></p>
 <p>Next, we simulate the response variable <code>Y</code> using the
 observation equation. The observation error is assumed to be normally
-distributed with mean zero and variance
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>σ</mi><mi>ϵ</mi><mn>2</mn></msubsup><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">\sigma_\epsilon^2 = 2</annotation></semantics></math>.</p>
+distributed with mean zero and variance <span class="math inline">\sigma_\epsilon^2 = 2</span>.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gamma</span> <span class="op">&lt;-</span> <span class="fl">1</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
@@ -246,20 +246,20 @@ specific location.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">fitted_values</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1]  30 100</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">fitted_values</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">5</span>,<span class="op">]</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;        V1                V2               V3                V4          </span></span>
-<span><span class="co">#&gt;  Min.   :-8.1916   Min.   :-8.960   Min.   :-10.021   Min.   :-12.2259  </span></span>
-<span><span class="co">#&gt;  1st Qu.: 0.3895   1st Qu.: 1.924   1st Qu.:  2.185   1st Qu.:  0.6794  </span></span>
-<span><span class="co">#&gt;  Median : 4.4266   Median : 5.749   Median :  5.319   Median :  6.1380  </span></span>
-<span><span class="co">#&gt;  Mean   : 3.9777   Mean   : 4.908   Mean   :  4.701   Mean   :  5.0620  </span></span>
-<span><span class="co">#&gt;  3rd Qu.: 7.0135   3rd Qu.: 8.557   3rd Qu.:  7.865   3rd Qu.:  9.1050  </span></span>
-<span><span class="co">#&gt;  Max.   :16.4474   Max.   :14.193   Max.   : 14.411   Max.   : 16.1886  </span></span>
+<span><span class="co">#&gt;        V1                V2               V3                V4         </span></span>
+<span><span class="co">#&gt;  Min.   :-8.0731   Min.   :-8.794   Min.   :-10.041   Min.   :-12.383  </span></span>
+<span><span class="co">#&gt;  1st Qu.: 0.4735   1st Qu.: 1.875   1st Qu.:  2.092   1st Qu.:  0.539  </span></span>
+<span><span class="co">#&gt;  Median : 4.3935   Median : 5.713   Median :  5.392   Median :  6.080  </span></span>
+<span><span class="co">#&gt;  Mean   : 3.9990   Mean   : 4.886   Mean   :  4.699   Mean   :  5.044  </span></span>
+<span><span class="co">#&gt;  3rd Qu.: 6.9766   3rd Qu.: 8.587   3rd Qu.:  7.949   3rd Qu.:  9.050  </span></span>
+<span><span class="co">#&gt;  Max.   :16.5299   Max.   :13.997   Max.   : 14.391   Max.   : 16.155  </span></span>
 <span><span class="co">#&gt;        V5         </span></span>
-<span><span class="co">#&gt;  Min.   :-11.695  </span></span>
-<span><span class="co">#&gt;  1st Qu.:  1.686  </span></span>
-<span><span class="co">#&gt;  Median :  4.805  </span></span>
-<span><span class="co">#&gt;  Mean   :  4.739  </span></span>
-<span><span class="co">#&gt;  3rd Qu.:  8.387  </span></span>
-<span><span class="co">#&gt;  Max.   : 19.619</span></span></code></pre></div>
+<span><span class="co">#&gt;  Min.   :-11.581  </span></span>
+<span><span class="co">#&gt;  1st Qu.:  1.693  </span></span>
+<span><span class="co">#&gt;  Median :  4.749  </span></span>
+<span><span class="co">#&gt;  Mean   :  4.766  </span></span>
+<span><span class="co">#&gt;  3rd Qu.:  8.407  </span></span>
+<span><span class="co">#&gt;  Max.   : 19.634</span></span></code></pre></div>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">mod</span>, Y<span class="op">=</span><span class="va">Y</span>, id<span class="op">=</span><span class="fl">1</span><span class="op">)</span> <span class="co"># pick a number between 1 and p</span></span></code></pre></div>
 <p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-13-1.png" width="700"></p>
@@ -279,13 +279,13 @@ the <code>coef</code> method. Here we show those of constant
 coefficients.</p>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">mod</span>, <span class="st">'overall'</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt;         Mean     ci_low     ci_high</span></span>
-<span><span class="co">#&gt; 1  6.3144261  6.2622660  6.36658616</span></span>
-<span><span class="co">#&gt; 2  2.9284035  2.8748444  2.98196262</span></span>
-<span><span class="co">#&gt; 3 -0.1093955 -0.1596674 -0.05912353</span></span>
+<span><span class="co">#&gt;         Mean         sd     ci_low     ci_high</span></span>
+<span><span class="co">#&gt; 1  6.3168361 0.02767138  6.2626011  6.37107097</span></span>
+<span><span class="co">#&gt; 2  2.9331528 0.02717265  2.8798954  2.98641022</span></span>
+<span><span class="co">#&gt; 3 -0.1092179 0.02771084 -0.1635301 -0.05490561</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/coef.html" class="external-link">coef</a></span><span class="op">(</span><span class="va">mod</span>, <span class="st">'gamma'</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       Mean         sd    ci_low  ci_high</span></span>
-<span><span class="co">#&gt; 1 1.008869 0.02679042 0.9563603 1.061377</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 1.006071 0.02622202 0.9546773 1.057466</span></span></code></pre></div>
 <p>The <code>plot</code> method can also be used to visualize the
 time-varying, space-varying, and spacetime-varying coefficients. The
 returned object is a <code>ggplot</code> object. The label “Observed”
@@ -421,9 +421,9 @@ and Bayesian <em>p-values</em>. These are all described <a href="https://czaccar
 separate article</a>.</p>
 <div class="sourceCode" id="cb35"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">ave</span><span class="op">$</span><span class="va">DIC</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 10941.42</span></span>
+<span><span class="co">#&gt; [1] 10942.04</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">ave</span><span class="op">$</span><span class="va">WAIC</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 10962.61</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 10964.29</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -540,7 +540,7 @@ distinguished from the predicted ones.</p>
 <p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-9.png" width="700"></p>
 <p>The <code>predict</code> method can be used to easily access the
 posterior predictive summaries, for both the response variable, as shown
-below, the varying coefficients. The input <code>Coo_sf_pred</code>
+below, and the varying coefficients. The input <code>Coo_sf_pred</code>
 (optional) allows to return a simple feature object, which may be useful
 for plotting.</p>
 <div class="sourceCode" id="cb48"><pre class="downlit sourceCode r">

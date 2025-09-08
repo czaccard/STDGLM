@@ -11,7 +11,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
-<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<!-- katex math --><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script><script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script><script src="../katex-auto.js"></script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -21,7 +22,7 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
+    <nav class="navbar navbar-expand-lg fixed-top " aria-label="Site navigation"><div class="container">
 
     <a class="navbar-brand me-2" href="../index.html">STDGLM</a>
 
@@ -41,6 +42,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/a01_model_output.html">Details on Model Output</a></li>
     <li><a class="dropdown-item" href="../articles/a02_fit_simulated.html">Simulated Data Analysis</a></li>
+    <li><a class="dropdown-item" href="../articles/a03_apulia_aq.html">Analysis of Apulia Air Quality Data</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -50,6 +52,14 @@
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/czaccard/STDGLM/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-lightswitch" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Light switch"><span class="fa fa-sun"></span></button>
+  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdown-lightswitch">
+<li><button class="dropdown-item" data-bs-theme-value="light"><span class="fa fa-sun"></span> Light</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="dark"><span class="fa fa-moon"></span> Dark</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="auto"><span class="fa fa-adjust"></span> Auto</button></li>
+  </ul>
+</li>
       </ul>
 </div>
 
@@ -119,177 +129,153 @@ command:</p>
 <div class="section level2">
 <h2 id="detailed-explanation-on-supported-stdglms">Detailed Explanation on supported STDGLMs<a class="anchor" aria-label="anchor" href="#detailed-explanation-on-supported-stdglms"></a>
 </h2>
-<p>Let
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
-denote the number of <em>spatial units</em> (either georeferenced
-locations or areal units) where data is collected, and let
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>T</mi><annotation encoding="application/x-tex">T</annotation></semantics></math>
-denote the number of <em>time points</em>. As for the current version of
-the package (<code>0.0.0.9000</code>), only Gaussian outcomes are
-supported. Specifically only dynamic linear models (DLMs) with the
-following <strong>observation equation</strong> can be handled:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>𝐱</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mi>′</mi><msub><mi>𝛃</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>+</mo><msub><mi>𝐳</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mi>′</mi><mi>𝛄</mi><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>∼</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mi>ϵ</mi><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">
-    y_{it} = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)
-</annotation></semantics></math> where:</p>
+<p>Let <span class="math inline">p</span> denote the number of
+<em>spatial units</em> (either georeferenced locations or areal units)
+where data is collected, and let <span class="math inline">T</span>
+denote the number of <em>time points</em>. Generalized dynamic linear
+models (GDLMs) with the following <strong>observation equation</strong>
+can be handled: <span class="math display">
+    y_{it} \sim F \\
+    \eta_{it} = g\left(E\left( y_{it} \right)\right) =
+\boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} +
+\boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad
+\epsilon_{it} \sim N(0, \sigma_\epsilon^2)
+</span> where:</p>
 <ul>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">y_{it}</annotation></semantics></math>
-is the response variable at spatial unit
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>p</mi></mrow><annotation encoding="application/x-tex">i=1, \dots, p</annotation></semantics></math>
-and time
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>T</mi></mrow><annotation encoding="application/x-tex">t=1, \dots, T</annotation></semantics></math>,</p></li>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝐱</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mrow><mn>1</mn><mo>,</mo><mi>i</mi><mi>t</mi></mrow></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>x</mi><mrow><mi>J</mi><mo>,</mo><mi>i</mi><mi>t</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>′</mi></mrow><annotation encoding="application/x-tex">\boldsymbol{x}_{it} = (x_{1,it}, \dots, x_{J,it})'</annotation></semantics></math>
-is a
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math>-dimensional
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo>≥</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">J\ge 1</annotation></semantics></math>)
-vector of covariates at spatial unit
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
-at time
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+<li><p><span class="math inline">y_{it}</span> is the response variable
+at spatial unit <span class="math inline">i=1, \dots, p</span> and time
+<span class="math inline">t=1, \dots, T</span>, following an exponential
+family distribution <span class="math inline">F</span>,</p></li>
+<li><p><span class="math inline">\eta_{it}</span> is the corresponding
+linear predictor, defined using a non-linear link function <span class="math inline">g(\cdot)</span>,</p></li>
+<li><p><span class="math inline">\boldsymbol{x}_{it} = (x_{1,it}, \dots,
+x_{J,it})'</span> is a <span class="math inline">J</span>-dimensional (<span class="math inline">J\ge
+1</span>) vector of covariates at spatial unit <span class="math inline">i</span> at time <span class="math inline">t</span>
 (an intercept may or may not be included here),</p></li>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝛃</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>β</mi><mrow><mn>1</mn><mo>,</mo><mi>i</mi><mi>t</mi></mrow></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>β</mi><mrow><mi>J</mi><mo>,</mo><mi>i</mi><mi>t</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>′</mi></mrow><annotation encoding="application/x-tex">\boldsymbol{\beta}_{it} = (\beta_{1,it}, \dots, \beta_{J,it})'</annotation></semantics></math>
-is the state vector at time
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
-at spatial unit
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>,</p></li>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐳</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">\boldsymbol{z}_{it}</annotation></semantics></math>
-is a
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>q</mi><annotation encoding="application/x-tex">q</annotation></semantics></math>-dimensional
-vector of covariates whose effects are constant (an intercept may or may
-not be included here),</p></li>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝛄</mi><annotation encoding="application/x-tex">\boldsymbol{\gamma}</annotation></semantics></math>
-is a vector of non-varying coefficients,</p></li>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">\epsilon_{it}</annotation></semantics></math>
-is the observation error at time
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
-at spatial unit
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>.</p></li>
+<li><p><span class="math inline">\boldsymbol{\beta}_{it} =
+(\beta_{1,it}, \dots, \beta_{J,it})'</span> is the state vector at
+time <span class="math inline">t</span> at spatial unit <span class="math inline">i</span>,</p></li>
+<li><p><span class="math inline">\boldsymbol{z}_{it}</span> is a <span class="math inline">q</span>-dimensional vector of covariates whose
+effects are constant (an intercept may or may not be included
+here),</p></li>
+<li><p><span class="math inline">\boldsymbol{\gamma}</span> is a vector
+of non-varying coefficients,</p></li>
+<li><p><span class="math inline">\epsilon_{it}</span> is the observation
+error at time <span class="math inline">t</span> at spatial unit <span class="math inline">i</span>.</p></li>
 </ul>
 <p>The evolution of the state vector is described by the following
 <strong>state equation</strong>, which accounts for spatial correlations
-in the state vector:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝛃</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msub><mi>𝐅</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><msub><mi>𝛃</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>𝛈</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>𝛈</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>∼</mo><msub><mi>N</mi><mi>p</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msub><mi>𝚺</mi><mrow><mi>η</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><mi>j</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>J</mi></mrow><annotation encoding="application/x-tex">
-    \boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J
-</annotation></semantics></math></p>
+in the state vector: <span class="math display">
+    \boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t}
+\boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad
+\boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}),
+\quad j=1, \dots, J
+</span></p>
 <p>where:</p>
 <ul>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝛃</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>β</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn><mi>t</mi></mrow></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>β</mi><mrow><mi>j</mi><mo>,</mo><mi>p</mi><mi>t</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>′</mi></mrow><annotation encoding="application/x-tex">\boldsymbol{\beta}_{j,t} = (\beta_{j,1t}, \dots, \beta_{j,pt})'</annotation></semantics></math>
-is the state vector related to the
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>-th
-covariate
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>x</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>x</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn><mi>t</mi></mrow></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>x</mi><mrow><mi>j</mi><mo>,</mo><mi>p</mi><mi>t</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>′</mi></mrow><annotation encoding="application/x-tex">x_{j,t} = (x_{j,1t}, \dots, x_{j,pt})'</annotation></semantics></math>,
-at time
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
-for all spatial units,</p></li>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝐅</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><msubsup><mi>ϕ</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><msub><mi>𝐈</mi><mi>p</mi></msub></mrow><annotation encoding="application/x-tex">\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p</annotation></semantics></math>
-is a transition matrix,</p></li>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝚺</mi><mrow><mi>η</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\boldsymbol{\Sigma}_{\eta,j}</annotation></semantics></math>
-is the covariance matrix of the state evolution error
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝛈</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">\boldsymbol{\eta}_{j,t}</annotation></semantics></math>.</p></li>
+<li><p><span class="math inline">\boldsymbol{\beta}_{j,t} =
+(\beta_{j,1t}, \dots, \beta_{j,pt})'</span> is the state vector
+related to the <span class="math inline">j</span>-th covariate <span class="math inline">x_{j,t} = (x_{j,1t}, \dots, x_{j,pt})'</span>,
+at time <span class="math inline">t</span> for all spatial
+units,</p></li>
+<li><p><span class="math inline">\boldsymbol{F}_{j,t} =
+\phi_j^{(\mathsf{T})} \boldsymbol{I}_p</span> is a transition
+matrix,</p></li>
+<li><p><span class="math inline">\boldsymbol{\Sigma}_{\eta,j}</span> is
+the covariance matrix of the state evolution error <span class="math inline">\boldsymbol{\eta}_{j,t}</span>.</p></li>
 </ul>
-<p>The transition matrix
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝐅</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>,</mo><mi>j</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>J</mi><mo>,</mo></mrow><annotation encoding="application/x-tex">\boldsymbol{F}_{j,t}, j=1, \dots, J,</annotation></semantics></math>
-is assumed to be a scalar multiple of the identity matrix. The parameter
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>ϕ</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">\phi_j^{(\mathsf{T})}</annotation></semantics></math>
-controls the temporal autocorrelation of the state vector.</p>
-<p>The state evolution covariance matrix
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝚺</mi><mrow><mi>η</mi><mo>,</mo><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">\boldsymbol{\Sigma}_{\eta,j}</annotation></semantics></math>
-can be structured to reflect <em>spatial relationships</em>, e.g. by
-assuming an <strong>exponential covariance function</strong> if the data
-are point-referenced:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>𝚺</mi><mrow><mi>η</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mi>i</mi><mo>ℓ</mo></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow></msub><mo>exp</mo><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mfrac><msub><mi>d</mi><mrow><mi>i</mi><mo>ℓ</mo></mrow></msub><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow></msub></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo><mspace width="1.0em"></mspace><msub><mi>d</mi><mrow><mi>i</mi><mo>ℓ</mo></mrow></msub><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><msub><mi>𝐬</mi><mi>i</mi></msub><mo>−</mo><msub><mi>𝐬</mi><mo>ℓ</mo></msub><mo stretchy="false" form="postfix">∥</mo></mrow><annotation encoding="application/x-tex">
-        (\boldsymbol{\Sigma}_{\eta,j})_{i\ell} = \rho_{j,2} \exp\left(-\frac{d_{i\ell}}{\rho_{j,2}}\right), \quad d_{i\ell} = \| \boldsymbol{s}_i - \boldsymbol{s}_\ell \|
-</annotation></semantics></math> where
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">\rho_{j,1}</annotation></semantics></math>
-is the partial sill,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow></msub><annotation encoding="application/x-tex">\rho_{j,2}</annotation></semantics></math>
-is the range parameter, and $ d_{i}$ is the Euclidean distance between
-locations
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐬</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\boldsymbol{s}_i</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐬</mi><mo>ℓ</mo></msub><annotation encoding="application/x-tex">\boldsymbol{s}_\ell</annotation></semantics></math>.
-At the moment, this is the only supported covariance structure for
-point-referenced data.</p>
-<p>In this case, the evolution error
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝛈</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">\boldsymbol{\eta}_{j,t}</annotation></semantics></math>
-is assumed to be a zero-mean Gaussian process with exponential
-covariance matrix parameteterized by
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">\rho_{j,1}</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow></msub><annotation encoding="application/x-tex">\rho_{j,2}</annotation></semantics></math>,
-which we will denote as
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝛈</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>∼</mo><mi>G</mi><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow></msub><mo>;</mo><mi>e</mi><mi>x</mi><mi>p</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\boldsymbol{\eta}_{j,t} \sim GP(0, \rho_{j,1}, \rho_{j,2}; exp)</annotation></semantics></math>.</p>
+<p>The transition matrix <span class="math inline">\boldsymbol{F}_{j,t},
+j=1, \dots, J,</span> is assumed to be a scalar multiple of the identity
+matrix. The parameter <span class="math inline">\phi_j^{(\mathsf{T})}</span> controls the temporal
+autocorrelation of the state vector.</p>
+<p>The state evolution covariance matrix <span class="math inline">\boldsymbol{\Sigma}_{\eta,j}</span> can be
+structured to reflect <em>spatial relationships</em>, e.g. by assuming
+an <strong>exponential covariance function</strong> if the data are
+point-referenced: <span class="math display">
+        (\boldsymbol{\Sigma}_{\eta,j})_{i\ell} = \rho_{j,2}
+\exp\left(-\frac{d_{i\ell}}{\rho_{j,2}}\right), \quad d_{i\ell} = \|
+\boldsymbol{s}_i - \boldsymbol{s}_\ell \|
+</span> where <span class="math inline">\rho_{j,1}</span> is the partial
+sill, <span class="math inline">\rho_{j,2}</span> is the range
+parameter, and $ d_{i}$ is the Euclidean distance between locations
+<span class="math inline">\boldsymbol{s}_i</span> and <span class="math inline">\boldsymbol{s}_\ell</span>. At the moment, this is
+the only supported covariance structure for point-referenced data.</p>
+<p>In this case, the evolution error <span class="math inline">\boldsymbol{\eta}_{j,t}</span> is assumed to be a
+zero-mean Gaussian process with exponential covariance matrix
+parameteterized by <span class="math inline">\rho_{j,1}</span> and <span class="math inline">\rho_{j,2}</span>, which we will denote as <span class="math inline">\boldsymbol{\eta}_{j,t} \sim GP(0, \rho_{j,1},
+\rho_{j,2}; exp)</span>.</p>
 <p>If the data are areal, a <strong>proper conditional autoregressive
-(PCAR) covariance structure</strong> is assumed:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝚺</mi><mrow><mi>η</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow></msub><msup><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>𝐃</mi><mi>w</mi></msub><mo>−</mo><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow></msub><mi>𝐖</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup></mrow><annotation encoding="application/x-tex">
-    \boldsymbol{\Sigma}_{\eta,j} = \rho_{j,1} \left( \boldsymbol{D}_w - \rho_{j,2} \boldsymbol{W} \right)^{-1}
-</annotation></semantics></math> where
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐖</mi><annotation encoding="application/x-tex">\boldsymbol{W}</annotation></semantics></math>
-is a binary adjacency matrix,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐃</mi><mi>w</mi></msub><annotation encoding="application/x-tex">\boldsymbol{D}_w</annotation></semantics></math>
-is a diagonal matrix with row sums of
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐖</mi><annotation encoding="application/x-tex">\boldsymbol{W}</annotation></semantics></math>
-on the diagonal, and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow></msub><annotation encoding="application/x-tex">\rho_{j,1}</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow></msub><annotation encoding="application/x-tex">\rho_{j,2}</annotation></semantics></math>
-are the conditional variance and autocorrelation parameters,
-respectively.</p>
-<p>In this case, the evolution error
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝛈</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">\boldsymbol{\eta}_{j,t}</annotation></semantics></math>
-follows a zero-mean PCAR process, and we will denote this as
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝛈</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>∼</mo><mi>P</mi><mi>C</mi><mi>A</mi><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\boldsymbol{\eta}_{j,t} \sim PCAR(0, \rho_{j,1}, \rho_{j,2})</annotation></semantics></math>.</p>
+(PCAR) covariance structure</strong> is assumed: <span class="math display">
+    \boldsymbol{\Sigma}_{\eta,j} = \rho_{j,1} \left( \boldsymbol{D}_w -
+\rho_{j,2} \boldsymbol{W} \right)^{-1}
+</span> where <span class="math inline">\boldsymbol{W}</span> is a
+binary adjacency matrix, <span class="math inline">\boldsymbol{D}_w</span> is a diagonal matrix with
+row sums of <span class="math inline">\boldsymbol{W}</span> on the
+diagonal, and <span class="math inline">\rho_{j,1}</span> and <span class="math inline">\rho_{j,2}</span> are the conditional variance and
+autocorrelation parameters, respectively.</p>
+<p>In this case, the evolution error <span class="math inline">\boldsymbol{\eta}_{j,t}</span> follows a zero-mean
+PCAR process, and we will denote this as <span class="math inline">\boldsymbol{\eta}_{j,t} \sim PCAR(0, \rho_{j,1},
+\rho_{j,2})</span>.</p>
+<div class="section level3">
+<h3 id="supported-distributions">Supported Distributions<a class="anchor" aria-label="anchor" href="#supported-distributions"></a>
+</h3>
+<p>As for version <code>0.1.1</code>, the following distributions for
+the outcome are supported: Gaussian, Poisson, Bernoulli.</p>
+</div>
 <div class="section level3">
 <h3 id="anova-decomposition-of-the-state-vector">ANOVA Decomposition of the State Vector<a class="anchor" aria-label="anchor" href="#anova-decomposition-of-the-state-vector"></a>
 </h3>
 <p>The function <code>stdglm</code> allows for the decomposition of the
 state vector into components that can be interpreted as contributions
-from different sources of variability. Dropping the subscript
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
-for the sake of simplicity, the state vector
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>β</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><annotation encoding="application/x-tex">\beta_{it}</annotation></semantics></math>
-is decomposed as follows:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>β</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>=</mo><mover><mi>β</mi><mo accent="true">¯</mo></mover><mo>+</mo><msubsup><mi>β</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>+</mo><msubsup><mi>β</mi><mi>t</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>+</mo><msubsup><mi>β</mi><mrow><mi>i</mi><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mrow><annotation encoding="application/x-tex">
-\beta_{it} = \overline{\beta} + \beta_{i}^{(\mathsf{S})} + \beta_{t}^{(\mathsf{T})} + \beta_{it}^{(\mathsf{ST})}
-</annotation></semantics></math> where:</p>
+from different sources of variability. Dropping the subscript <span class="math inline">j</span> for the sake of simplicity, the state
+vector <span class="math inline">\beta_{it}</span> is decomposed as
+follows: <span class="math display">
+\beta_{it} = \overline{\beta} + \beta_{i}^{(\mathsf{S})} +
+\beta_{t}^{(\mathsf{T})} + \beta_{it}^{(\mathsf{ST})}
+</span> where:</p>
 <ul>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>β</mi><mo accent="true">¯</mo></mover><annotation encoding="application/x-tex">\overline{\beta}</annotation></semantics></math>
-is the overall mean effect,</p></li>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>β</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">\beta_{i}^{(\mathsf{S})}</annotation></semantics></math>
-is the spatial effect at spatial unit
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>,</p></li>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>β</mi><mi>t</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">\beta_{t}^{(\mathsf{T})}</annotation></semantics></math>
-is the temporal effect at time
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>,</p></li>
-<li><p><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>β</mi><mrow><mi>i</mi><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">\beta_{it}^{(\mathsf{ST})}</annotation></semantics></math>
-is the interaction effect between space and time at spatial unit
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>
-and time
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>.</p></li>
+<li><p><span class="math inline">\overline{\beta}</span> is the overall
+mean effect,</p></li>
+<li><p><span class="math inline">\beta_{i}^{(\mathsf{S})}</span> is the
+spatial effect at spatial unit <span class="math inline">i</span>,</p></li>
+<li><p><span class="math inline">\beta_{t}^{(\mathsf{T})}</span> is the
+temporal effect at time <span class="math inline">t</span>,</p></li>
+<li><p><span class="math inline">\beta_{it}^{(\mathsf{ST})}</span> is
+the interaction effect between space and time at spatial unit <span class="math inline">i</span> and time <span class="math inline">t</span>.</p></li>
 </ul>
 </div>
 <div class="section level3">
 <h3 id="bayesian-hierarchical-structure">Bayesian Hierarchical Structure<a class="anchor" aria-label="anchor" href="#bayesian-hierarchical-structure"></a>
 </h3>
-<p>The Bayesian model is as follows, for
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>T</mi></mrow><annotation encoding="application/x-tex">t=1, \dots, T</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>J</mi></mrow><annotation encoding="application/x-tex">j=1, \dots, J</annotation></semantics></math>:
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>y</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>𝐱</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mi>′</mi><msub><mi>𝛃</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mo>+</mo><msub><mi>𝐳</mi><mrow><mi>i</mi><mi>t</mi></mrow></msub><mi>′</mi><mi>𝛄</mi><mo>,</mo><msubsup><mi>σ</mi><mi>ϵ</mi><mn>2</mn></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msub><mi>𝛃</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow></msub></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><msub><mn>𝟏</mn><mi>p</mi></msub><msub><mover><mi>β</mi><mo accent="true">¯</mo></mover><mi>j</mi></msub><mo>+</mo><msubsup><mi>𝛃</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>+</mo><msub><mn>𝟏</mn><mi>p</mi></msub><msubsup><mi>β</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>+</mo><msubsup><mi>𝛃</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msup><msub><mi>𝛃</mi><mi>𝐣</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msup></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>β</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><mi>…</mi><mo>,</mo><msubsup><mi>β</mi><mrow><mi>j</mi><mo>,</mo><mi>p</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mi>′</mi><mo>∼</mo><mi>G</mi><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><msubsup><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>;</mo><mi>e</mi><mi>x</mi><mi>p</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> or </mtext><mspace width="0.333em"></mspace></mrow><mi>P</mi><mi>C</mi><mi>A</mi><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msubsup><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><msubsup><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msubsup><mi>β</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>ϕ</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><msubsup><mi>β</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><msubsup><mi>V</mi><mrow><mi>β</mi><mo>,</mo><mi>j</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msubsup><mi>𝛃</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mtd><mtd columnalign="left" style="text-align: left"><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>β</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><mi>…</mi><mo>,</mo><msubsup><mi>β</mi><mrow><mi>j</mi><mo>,</mo><mi>p</mi><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow><mi>′</mi><mo>∼</mo><mi>G</mi><mi>P</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>ϕ</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><msubsup><mi>𝛃</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><msubsup><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><msubsup><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>;</mo><mi>e</mi><mi>x</mi><mi>p</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mspace width="0.333em"></mspace><mtext mathvariant="normal"> or </mtext><mspace width="0.333em"></mspace></mrow><mi>P</mi><mi>C</mi><mi>A</mi><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><msubsup><mi>ϕ</mi><mi>j</mi><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><msubsup><mi>𝛃</mi><mrow><mi>j</mi><mo>,</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><msubsup><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>,</mo><msubsup><mi>ρ</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{align*}
-    y_{it} &amp;\sim N(\boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma}, \sigma_\epsilon^2) \\
-    \boldsymbol{\beta}_{j,t} &amp;= \boldsymbol{1}_p \overline{\beta}_j + \boldsymbol{\beta}_j^{(\mathsf{S})} + \boldsymbol{1}_p \beta_{j,t}^{(\mathsf{T})} + \boldsymbol{\beta}_{j,t}^{(\mathsf{ST})} \\
-    \boldsymbol{\beta_j}^{(\mathsf{S})} &amp;= (\beta_{j,1}^{(\mathsf{S})}, \dots, \beta_{j,p}^{(\mathsf{S})})' \sim GP(0, \rho_{j,1}^{(\mathsf{S})}, \rho_{j,2}^{(\mathsf{S})}; exp) \mbox{ or } PCAR(0, \rho_{j,1}^{(\mathsf{S})}, \rho_{j,2}^{(\mathsf{S})}) \\
-    \beta_{j,t}^{(\mathsf{T})} &amp;\sim N(\phi_j^{(\mathsf{T})} \beta_{j,t-1}^{(\mathsf{T})}, V_{\beta,j}^{(\mathsf{T})}) \\
-    \boldsymbol{\beta}_{j,t}^{(\mathsf{ST})} &amp;= (\beta_{j,1t}^{(\mathsf{ST})}, \dots, \beta_{j,pt}^{(\mathsf{ST})})' \sim GP(\phi_j^{(\mathsf{ST})} \boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})}, \rho_{j,1}^{(\mathsf{ST})}, \rho_{j,2}^{(\mathsf{ST})}; exp) \mbox{ or } PCAR(\phi_j^{(\mathsf{ST})} \boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})}, \rho_{j,1}^{(\mathsf{ST})}, \rho_{j,2}^{(\mathsf{ST})})
-\end{align*}</annotation></semantics></math></p>
+<p>For Gaussian outcomes, the Bayesian model is as follows, for <span class="math inline">t=1, \dots, T</span> and <span class="math inline">j=1, \dots, J</span> (generalization to other
+distributions is straightforward): <span class="math display">\begin{align*}
+    y_{it} &amp;\sim N(\boldsymbol{x}_{it}' \boldsymbol{\beta}_{it}
++ \boldsymbol{z}_{it}' \boldsymbol{\gamma}, \sigma_\epsilon^2) \\
+    \boldsymbol{\beta}_{j,t} &amp;= \boldsymbol{1}_p \overline{\beta}_j
++ \boldsymbol{\beta}_j^{(\mathsf{S})} + \boldsymbol{1}_p
+\beta_{j,t}^{(\mathsf{T})} + \boldsymbol{\beta}_{j,t}^{(\mathsf{ST})} \\
+    \boldsymbol{\beta_j}^{(\mathsf{S})} &amp;=
+(\beta_{j,1}^{(\mathsf{S})}, \dots, \beta_{j,p}^{(\mathsf{S})})'
+\sim GP(0, \rho_{j,1}^{(\mathsf{S})}, \rho_{j,2}^{(\mathsf{S})}; exp)
+\mbox{ or } PCAR(0, \rho_{j,1}^{(\mathsf{S})},
+\rho_{j,2}^{(\mathsf{S})}) \\
+    \beta_{j,t}^{(\mathsf{T})} &amp;\sim N(\phi_j^{(\mathsf{T})}
+\beta_{j,t-1}^{(\mathsf{T})}, V_{\beta,j}^{(\mathsf{T})}) \\
+    \boldsymbol{\beta}_{j,t}^{(\mathsf{ST})} &amp;=
+(\beta_{j,1t}^{(\mathsf{ST})}, \dots, \beta_{j,pt}^{(\mathsf{ST})})'
+\sim GP(\phi_j^{(\mathsf{ST})}
+\boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})}, \rho_{j,1}^{(\mathsf{ST})},
+\rho_{j,2}^{(\mathsf{ST})}; exp) \mbox{ or } PCAR(\phi_j^{(\mathsf{ST})}
+\boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})}, \rho_{j,1}^{(\mathsf{ST})},
+\rho_{j,2}^{(\mathsf{ST})})
+\end{align*}</span></p>
 <p>The model is completed with the following priors (again, dropping the
-subscript
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>,
-since these are common across
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>):
-<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mtable><mtr><mtd columnalign="right" style="text-align: right"><mover><mi>β</mi><mo accent="true">¯</mo></mover></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msub><mi>V</mi><mi>γ</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msubsup><mi>β</mi><mn>0</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msub><mi>V</mi><msub><mi>β</mi><mn>0</mn></msub></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msubsup><mi>𝛃</mi><mn>0</mn><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><msub><mi>N</mi><mi>p</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msub><mi>V</mi><msub><mi>β</mi><mn>0</mn></msub></msub><msub><mi>𝐈</mi><mi>p</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><mi>𝛄</mi></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><msub><mi>N</mi><mi>q</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><msub><mi>V</mi><mi>γ</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msubsup><mi>σ</mi><mi>ϵ</mi><mn>2</mn></msubsup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>I</mi><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>a</mi><mi>ϵ</mi></msub><mo>,</mo><msub><mi>b</mi><mi>ϵ</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msubsup><mi>ρ</mi><mn>1</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>I</mi><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>a</mi><mrow><mi>ρ</mi><mo>,</mo><mi>S</mi></mrow></msub><mo>,</mo><msub><mi>b</mi><mrow><mi>ρ</mi><mo>,</mo><mi>S</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msubsup><mi>ρ</mi><mn>2</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>U</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mi>i</mi><msub><mi>n</mi><mi>ρ</mi></msub><mo>,</mo><mi>m</mi><mi>a</mi><msub><mi>x</mi><mi>ρ</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msubsup><mi>ρ</mi><mn>1</mn><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>I</mi><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>a</mi><mrow><mi>ρ</mi><mo>,</mo><mi>S</mi><mi>T</mi></mrow></msub><mo>,</mo><msub><mi>b</mi><mrow><mi>ρ</mi><mo>,</mo><mi>S</mi><mi>T</mi></mrow></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msubsup><mi>ρ</mi><mn>2</mn><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>U</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mi>i</mi><msub><mi>n</mi><mi>ρ</mi></msub><mo>,</mo><mi>m</mi><mi>a</mi><msub><mi>x</mi><mi>ρ</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msup><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>T</mi><msub><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msup><mi>ϕ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>T</mi><msub><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>−</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr><mtr><mtd columnalign="right" style="text-align: right"><msubsup><mi>V</mi><mi>β</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup></mtd><mtd columnalign="left" style="text-align: left"><mo>∼</mo><mi>I</mi><mi>G</mi><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>a</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo>,</mo><msup><mi>b</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow></mtd></mtr></mtable><annotation encoding="application/x-tex">\begin{align*}
+subscript <span class="math inline">j</span>, since these are common
+across <span class="math inline">j</span>): <span class="math display">\begin{align*}
     \overline{\beta} &amp;\sim N(0, V_\gamma) \\
     \beta_{0}^{(\mathsf{T})} &amp;\sim N(0, V_{\beta_0}) \\
-    \boldsymbol{\beta}_{0}^{(\mathsf{ST})} &amp;\sim N_p(0, V_{\beta_0} \boldsymbol{I}_p) \\
+    \boldsymbol{\beta}_{0}^{(\mathsf{ST})} &amp;\sim N_p(0, V_{\beta_0}
+\boldsymbol{I}_p) \\
     \boldsymbol{\gamma} &amp;\sim N_q(0, V_\gamma) \\
     \sigma_\epsilon^2 &amp;\sim IG(a_\epsilon, b_\epsilon) \\
     \rho_1^{(\mathsf{S})} &amp;\sim IG(a_{\rho, S}, b_{\rho, S}) \\
@@ -298,28 +284,15 @@ since these are common across
     \rho_2^{(\mathsf{ST})} &amp;\sim U(min_\rho, max_\rho) \\
     \phi^{(\mathsf{T})} &amp;\sim TN_{(-1, 1)}(0, 1) \\
     \phi^{(\mathsf{ST})} &amp;\sim TN_{(-1, 1)}(0, 1) \\
-    V_\beta^{(\mathsf{T})} &amp;\sim IG(a^{(\mathsf{T})}, b^{(\mathsf{T})})
-\end{align*}</annotation></semantics></math> where
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><msub><mi>N</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo>,</mo><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>μ</mi><mo>,</mo><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">TN_{(q, r)}(\mu, \sigma^2)</annotation></semantics></math>
-denotes a normal distribution with mean
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
-and variance
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>σ</mi><mn>2</mn></msup><annotation encoding="application/x-tex">\sigma^2</annotation></semantics></math>
-truncated to the interval
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo>,</mo><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(q, r)</annotation></semantics></math>.
-The hyperparameters
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mi>i</mi><msub><mi>n</mi><mi>ρ</mi></msub></mrow><annotation encoding="application/x-tex">min_\rho</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mi>a</mi><msub><mi>x</mi><mi>ρ</mi></msub></mrow><annotation encoding="application/x-tex">max_\rho</annotation></semantics></math>
-depend on the type of spatial data. If the data are point-referenced,
-they are set to the minimum and maximum distances between points divided
-by 3, respectively. If the data are areal,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mi>i</mi><msub><mi>n</mi><mi>ρ</mi></msub><mo>=</mo><mn>0.1</mn></mrow><annotation encoding="application/x-tex">min_\rho= 0.1</annotation></semantics></math>
-and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>m</mi><mi>a</mi><msub><mi>x</mi><mi>ρ</mi></msub><mo>→</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">max_\rho \rightarrow 1</annotation></semantics></math>.</p>
+    V_\beta^{(\mathsf{T})} &amp;\sim IG(a^{(\mathsf{T})},
+b^{(\mathsf{T})})
+\end{align*}</span> where <span class="math inline">TN_{(q, r)}(\mu,
+\sigma^2)</span> denotes a normal distribution with mean <span class="math inline">\mu</span> and variance <span class="math inline">\sigma^2</span> truncated to the interval <span class="math inline">(q, r)</span>. The hyperparameters <span class="math inline">min_\rho</span> and <span class="math inline">max_\rho</span> depend on the type of spatial data.
+If the data are point-referenced, they are set to the minimum and
+maximum distances between points divided by 3, respectively. If the data
+are areal, <span class="math inline">min_\rho= 0.1</span> and <span class="math inline">max_\rho \rightarrow 1</span>.</p>
 <p>Note that the spacetime-varying coefficients are assumed independent
-a priori across
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>j</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>J</mi></mrow><annotation encoding="application/x-tex">j=1,\dots,J</annotation></semantics></math>.</p>
+a priori across <span class="math inline">j=1,\dots,J</span>.</p>
 </div>
 <div class="section level3">
 <h3 id="efficient-inference-and-identifiability">Efficient Inference and Identifiability<a class="anchor" aria-label="anchor" href="#efficient-inference-and-identifiability"></a>
@@ -329,18 +302,14 @@ with sparse matrix techniques.</p>
 <p>To make the model identifiable, some <strong>constraints</strong> are
 imposed on the varying parameters at each MCMC iteration:</p>
 <ul>
-<li><p>Set
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><mi>T</mi></msubsup><msubsup><mi>β</mi><mi>t</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖳</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sum_{t=1}^{T} \beta_{t}^{(\mathsf{T})} = 0</annotation></semantics></math>.</p></li>
-<li><p>Set
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>p</mi></msubsup><msubsup><mi>β</mi><mi>i</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝖲</mi><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sum_{i=1}^{p} \beta_{i}^{(\mathsf{S})} = 0</annotation></semantics></math>.</p></li>
-<li><p>Set
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>p</mi></msubsup><msubsup><mi>β</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sum_{i=1}^{p} \beta_{i,t}^{(\mathsf{ST})} = 0</annotation></semantics></math>
-for each
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>T</mi></mrow><annotation encoding="application/x-tex">t=1,\dots,T</annotation></semantics></math>.</p></li>
-<li><p>Set
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><mi>T</mi></msubsup><msubsup><mi>β</mi><mrow><mi>i</mi><mo>,</mo><mi>t</mi></mrow><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mi>𝖲</mi><mi>𝖳</mi></mrow><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sum_{t=1}^{T} \beta_{i,t}^{(\mathsf{ST})} = 0</annotation></semantics></math>
-for each
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>i</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi>…</mi><mo>,</mo><mi>p</mi></mrow><annotation encoding="application/x-tex">i=1,\dots,p</annotation></semantics></math>.</p></li>
+<li><p>Set <span class="math inline">\sum_{t=1}^{T}
+\beta_{t}^{(\mathsf{T})} = 0</span>.</p></li>
+<li><p>Set <span class="math inline">\sum_{i=1}^{p}
+\beta_{i}^{(\mathsf{S})} = 0</span>.</p></li>
+<li><p>Set <span class="math inline">\sum_{i=1}^{p}
+\beta_{i,t}^{(\mathsf{ST})} = 0</span> for each <span class="math inline">t=1,\dots,T</span>.</p></li>
+<li><p>Set <span class="math inline">\sum_{t=1}^{T}
+\beta_{i,t}^{(\mathsf{ST})} = 0</span> for each <span class="math inline">i=1,\dots,p</span>.</p></li>
 </ul>
 </div>
 </div>

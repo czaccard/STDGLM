@@ -11,7 +11,8 @@
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
-<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<!-- katex math --><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script><script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script><script src="../katex-auto.js"></script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -21,7 +22,7 @@
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
-    <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
+    <nav class="navbar navbar-expand-lg fixed-top " aria-label="Site navigation"><div class="container">
 
     <a class="navbar-brand me-2" href="../index.html">STDGLM</a>
 
@@ -41,6 +42,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/a01_model_output.html">Details on Model Output</a></li>
     <li><a class="dropdown-item" href="../articles/a02_fit_simulated.html">Simulated Data Analysis</a></li>
+    <li><a class="dropdown-item" href="../articles/a03_apulia_aq.html">Analysis of Apulia Air Quality Data</a></li>
   </ul>
 </li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -50,6 +52,14 @@
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/czaccard/STDGLM/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-lightswitch" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Light switch"><span class="fa fa-sun"></span></button>
+  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdown-lightswitch">
+<li><button class="dropdown-item" data-bs-theme-value="light"><span class="fa fa-sun"></span> Light</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="dark"><span class="fa fa-moon"></span> Dark</button></li>
+    <li><button class="dropdown-item" data-bs-theme-value="auto"><span class="fa fa-adjust"></span> Auto</button></li>
+  </ul>
+</li>
       </ul>
 </div>
 
@@ -71,9 +81,187 @@
 
     
     
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/czaccard/STDGLM" class="external-link">STDGLM</a></span><span class="op">)</span></span></code></pre></div>
-  </main>
+<p>This article dives into the details of the output of the function
+<code><a href="../reference/stdglm.html">stdglm()</a></code>.</p>
+<div class="section level2">
+<h2 id="model-output">Model Output<a class="anchor" aria-label="anchor" href="#model-output"></a>
+</h2>
+<p>The output is an object of class <code>stdglm</code> which is a list
+with elements <code>ave</code> and <code>out</code>. The element
+<code>ave</code> contains the posterior means of the model parameters,
+while <code>out</code> contains the full MCMC output.</p>
+<p><code>ave</code> and <code>out</code> are lists as well, and their
+elements change depending on the model fitted.</p>
+<div class="section level3">
+<h3 id="ave-list">
+<code>ave</code> list<a class="anchor" aria-label="anchor" href="#ave-list"></a>
+</h3>
+<p>Generally speaking, the list <code>ave</code> contains the following
+elements:</p>
+<ul>
+<li>
+<code>Yfitted_mean</code>, <code>Yfitted2_mean</code>: <span class="math inline">p</span>-by-<span class="math inline">T</span>
+matrices with first two moments of draws from the posterior predictive
+distribution for the observed data points.</li>
+<li>
+<code>Ypred_mean</code>, <code>Ypred2_mean</code>: <span class="math inline">p_{new}</span>-by-<span class="math inline">T_{new}</span> matrices with first two moments of
+draws from the posterior predictive distribution for the new data points
+(only if out-of-sample predictions are required).</li>
+<li>
+<code>B_postmean</code>, <code>B2_postmean</code>: First two moments
+of the overall effect of varying coefficients.</li>
+<li>
+<code>Btime_postmean</code>, <code>Btime2_postmean</code>: First two
+moments of the temporal effect of varying coefficients.</li>
+<li>
+<code>Bspace_postmean</code>, <code>Bspace2_postmean</code>: First
+two moments of the spatial effect of varying coefficients.</li>
+<li>
+<code>Bspacetime_postmean</code>, <code>Bspacetime2_postmean</code>:
+First two moments of the spatio-temporal effect of varying
+coefficients.</li>
+<li>
+<code>B2_c_t_s_st</code>: 2nd moment of the varying coefficients,
+<span class="math inline">\beta_{it}</span>.</li>
+<li>
+<code>Btime_pred_postmean</code>, <code>Btime_pred2_postmean</code>:
+First two moments of the temporal effect of varying coefficients at the
+predicted time points (only if out-of-sample predictions are
+required).</li>
+<li>
+<code>Bspace_pred_postmean</code>,
+<code>Bspace_pred2_postmean</code>: First two moments of the spatial
+effect of varying coefficients at the predicted spatial locations (only
+if out-of-sample predictions are required).</li>
+<li>
+<code>Bspacetime_pred_postmean</code>,
+<code>Bspacetime_pred2_postmean</code>: First two moments of the
+spatio-temporal effect of varying coefficients at the predicted spatial
+locations and all time points (only if out-of-sample predictions are
+required).</li>
+<li>
+<code>B_pred2_c_t_s_st</code>: 2nd moment of the varying
+coefficients, <span class="math inline">\beta_{it}</span>, at the
+predicted spatial locations and all time points (only if out-of-sample
+predictions are required).</li>
+<li>
+<code>meanY1mean</code>: Contribution of covariates with varying
+coefficients, i.e. <span class="math inline">\boldsymbol{x}_{it}</span>
+multiplied by its effects.</li>
+<li>
+<code>meanZmean</code>: Contribution of covariates with non-varying
+effects, i.e. <span class="math inline">\boldsymbol{z}_{it}'
+\boldsymbol{\gamma}</span> (only if <code>Z</code> is specified).</li>
+<li>
+<code>thetay_mean</code>: It is defined as
+<code>meanY1mean + meanZmean + offset</code>.</li>
+<li>
+<code>Eta_tilde_mean</code>: Posterior mean of the linear predictor
+(for non-Gaussian outcomes). For Poisson outcomes, it is defined as
+<code>Eta_tilde_mean = thetay_mean + epsilon</code>, where
+<code>epsilon</code> is a Gaussian error term. For Bernoulli outcomes,
+it is obtained by drawing from a truncated normal distribution with mean
+<code>thetay_mean</code>.</li>
+<li>
+<code>DIC</code>, <code>Dbar</code>, <code>pD</code>: Deviance
+Information Criterion, <span class="math inline">DIC = \bar{D} +
+pD</span>.</li>
+<li>
+<code>WAIC</code>, <code>se_WAIC</code>, <code>pWAIC</code>,
+<code>se_pWAIC</code>, <code>elpd</code>, <code>se_elpd</code>: Widely
+Applicable Information Criterion, the penalty term, and expected log
+pointwise predictive density. The prefix se_ denotes standard errors.
+See <span class="citation">Gelman et al. (2014)</span> for details.</li>
+<li>
+<code>CRPS</code>: Continuous Ranked Probability Score. It is
+<em>positively oriented</em>, i.e. the model with the highest mean score
+is favoured <span class="citation">(Gschlößl and Czado 2007)</span>:
+<span class="math display">
+\mathrm{CRPS}\left(y_{it}\right)=\frac{1}{2} E\left|y_{r e p,
+{it}}-\tilde{y}_{r e p, {it}}\right|-E\left|y_{r e p,
+{it}}-y_{it}\right|
+</span> where <span class="math inline">y_{r e p, {it}}</span> and <span class="math inline">\tilde{y}_{r e p, {it}}</span> are independent
+replicates from the posterior predictive distribution.</li>
+<li>
+<code>PMCC</code>: Predictive model choice criterion. It is
+<em>negatively oriented</em>, i.e. the model with the lowest score is
+favoured <span class="citation">(Gelfand and Ghosh 1998)</span>: <span class="math display">
+\mathrm{PMCC}=\sum_{i=1}^p \sum_{t=1}^T \left\{y_{it}-E\left(y_{r e p,
+{it}} \mid \mathbf{y}\right)\right\}^2+\sum_{i=1}^p \sum_{t=1}^T
+\operatorname{Var}\left(y_{r e p, {it}} \mid \mathbf{y}\right) .
+</span>
+</li>
+<li>
+<strong>Bayesian p-values</strong>: following <span class="citation">Gelman et al. (2014)</span>, the <em>posterior
+predictive p-value</em> is defined as: <span class="math display">
+p_B=\operatorname{Pr}\left(T\left(y, \theta\right) \geq T(y_{rep},
+\theta) \mid y\right),
+</span> for some test quantity <span class="math inline">T(y,
+\theta)</span> and some parameter vector <span class="math inline">\theta</span>. The <em>p-values</em> returned by
+<code><a href="../reference/stdglm.html">stdglm()</a></code> are based on the following functions:
+<ul>
+<li>
+<code>pvalue_YgrYhat</code>: <span class="math inline">T(y_{it},
+\theta) = y_{it}</span>.</li>
+<li>
+<code>pvalue_ResgrReshat</code>: <span class="math inline">T(y_{it},
+\theta) = r</span>, where <span class="math inline">r_{it}=\frac{y_{it}
+- E\left( y_{it} \mid \theta \right)}{\operatorname{Var}\left( y_{it}
+\mid \theta \right)}</span> are the Pearson residuals.</li>
+<li>
+<code>pvalue_chisquare</code>: <span class="math inline">T(y,
+\theta) = \sum_{i=1}^p \sum_{t=1}^T r_{it}^2</span>
+</li>
+<li>
+<code>pvalue_perc95</code>: <span class="math inline">T(y,
+\theta)</span> is the 95-th percentile of the distribution of the
+outcome for each spatial location.</li>
+</ul>
+</li>
+<li>
+<code>AccRate</code>: Point-wise acceptance rate for the random-walk
+Metropolis-Hastings step (only for Poisson outcome).</li>
+</ul>
+<p>Note that the criteria above (DIC, WAIC, p-values, etc.) are computed
+<em>only</em> using the non-missing values of the response variable.</p>
+</div>
+<div class="section level3">
+<h3 id="out-list">
+<code>out</code> list<a class="anchor" aria-label="anchor" href="#out-list"></a>
+</h3>
+<p>The list <code>out</code> contains the following elements:</p>
+<ul>
+<li>please see the documentation of the function <a href="https://czaccard.github.io/STDGLM/reference/stdglm.html">here</a>.</li>
+</ul>
+<p>Note that the function <code><a href="../reference/stdglm.html">stdglm()</a></code> does not return all the
+posterior draws for the varying coefficients, but only their posterior
+summaries (i.e., first two moments). This is done to save memory, as the
+storing matrices can be very large.
+<!--- If you want to store the full posterior draws for the varying coefficients, you can set the argument `store_betas = TRUE` when calling `stdglm()`. However, this will increase the memory usage significantly.---></p>
+</div>
+</div>
+<div class="section level2">
+<h2 class="unnumbered" id="references">References<a class="anchor" aria-label="anchor" href="#references"></a>
+</h2>
+<div id="refs" class="references csl-bib-body hanging-indent" entry-spacing="0">
+<div id="ref-gelfand1998model" class="csl-entry">
+Gelfand, Alan E, and Sujit K Ghosh. 1998. <span>“Model Choice: A Minimum
+Posterior Predictive Loss Approach.”</span> <em>Biometrika</em> 85 (1):
+1–11.
+</div>
+<div id="ref-Gelman_Carlin_Stern_Rubin_2014" class="csl-entry">
+Gelman, Andrew, John B Carlin, Hal S Stern, and Donald B Rubin. 2014.
+<em>Bayesian Data Analysis</em>. 3rd ed. Chapman; Hall/CRC.
+</div>
+<div id="ref-gschlossl2007spatial" class="csl-entry">
+Gschlößl, Susanne, and Claudia Czado. 2007. <span>“Spatial Modelling of
+Claim Frequency and Claim Size in Non-Life Insurance.”</span>
+<em>Scandinavian Actuarial Journal</em> 2007 (3): 202–25.
+</div>
+</div>
+</div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside>
 </div>
 
 

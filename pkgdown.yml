@@ -4,8 +4,9 @@ pkgdown_sha: ~
 articles:
   articles/a01_model_output: a01_model_output.html
   articles/a02_fit_simulated: a02_fit_simulated.html
+  articles/a03_apulia_aq: a03_apulia_aq.html
   STDGLM: STDGLM.html
-last_built: 2025-09-05T14:15Z
+last_built: 2025-09-08T15:09Z
 urls:
   reference: https://czaccard.github.io/STDGLM/reference
   article: https://czaccard.github.io/STDGLM/articles
