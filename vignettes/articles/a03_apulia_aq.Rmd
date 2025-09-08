@@ -12,10 +12,12 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
-setwd("C:/Users/carlo/OneDrive - UdA/Assegni_ricerca/Papers/SpatioTemporalDGLM/STDGLM/vignettes/articles")
 ev_ = FALSE
 ```
 
+```{r, echo=FALSE, include = FALSE, eval = FALSE}
+setwd("C:/Users/carlo/OneDrive - UdA/Assegni_ricerca/Papers/SpatioTemporalDGLM/STDGLM/vignettes/articles")
+```
 
 Here, we will analyze a real application. The dataset `ApuliaAQ`, included within the package, contains daily measurements of some air pollutant concentrations from ground monitoring stations located in Apulia, Italy, from June to December 2022. In particular, we want to predict the nitrogen dioxide (NO2) concentrations. This example is relevant to demonstrate how the `stdglm()` function works when there are missing data in the response variable.
 
