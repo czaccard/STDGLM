@@ -166,7 +166,7 @@ error at time <span class="math inline">t</span> at spatial unit <span class="ma
 <p>The evolution of the state vector is described by the following
 <strong>state equation</strong>, which accounts for spatial correlations
 in the state vector: <span class="math display">
-    \boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t}
+    \boldsymbol{\beta}_{j, t} = \boldsymbol{G}_{j,t}
 \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad
 \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}),
 \quad j=1, \dots, J
@@ -178,13 +178,13 @@ in the state vector: <span class="math display">
 related to the <span class="math inline">j</span>-th covariate <span class="math inline">x_{j,t} = (x_{j,1t}, \dots, x_{j,pt})'</span>,
 at time <span class="math inline">t</span> for all spatial
 units,</p></li>
-<li><p><span class="math inline">\boldsymbol{F}_{j,t} =
+<li><p><span class="math inline">\boldsymbol{G}_{j,t} =
 \phi_j^{(\mathsf{T})} \boldsymbol{I}_p</span> is a transition
 matrix,</p></li>
 <li><p><span class="math inline">\boldsymbol{\Sigma}_{\eta,j}</span> is
 the covariance matrix of the state evolution error <span class="math inline">\boldsymbol{\eta}_{j,t}</span>.</p></li>
 </ul>
-<p>The transition matrix <span class="math inline">\boldsymbol{F}_{j,t},
+<p>The transition matrix <span class="math inline">\boldsymbol{G}_{j,t},
 j=1, \dots, J,</span> is assumed to be a scalar multiple of the identity
 matrix. The parameter <span class="math inline">\phi_j^{(\mathsf{T})}</span> controls the temporal
 autocorrelation of the state vector.</p>
@@ -197,8 +197,8 @@ point-referenced: <span class="math display">
 \boldsymbol{s}_i - \boldsymbol{s}_\ell \|
 </span> where <span class="math inline">\rho_{j,1}</span> is the partial
 sill, <span class="math inline">\rho_{j,2}</span> is the range
-parameter, and $ d_{i}$ is the Euclidean distance between locations
-<span class="math inline">\boldsymbol{s}_i</span> and <span class="math inline">\boldsymbol{s}_\ell</span>. At the moment, this is
+parameter, and <span class="math inline">d_{i\ell}</span> is the
+Euclidean distance between locations <span class="math inline">\boldsymbol{s}_i</span> and <span class="math inline">\boldsymbol{s}_\ell</span>. At the moment, this is
 the only supported covariance structure for point-referenced data.</p>
 <p>In this case, the evolution error <span class="math inline">\boldsymbol{\eta}_{j,t}</span> is assumed to be a
 zero-mean Gaussian process with exponential covariance matrix
@@ -257,7 +257,7 @@ distributions is straightforward): <span class="math display">\begin{align*}
     \boldsymbol{\beta_j}^{(\mathsf{S})} &amp;=
 (\beta_{j,1}^{(\mathsf{S})}, \dots, \beta_{j,p}^{(\mathsf{S})})'
 \sim GP(0, \rho_{j,1}^{(\mathsf{S})}, \rho_{j,2}^{(\mathsf{S})}; exp)
-\mbox{ or } PCAR(0, \rho_{j,1}^{(\mathsf{S})},
+\quad or \quad PCAR(0, \rho_{j,1}^{(\mathsf{S})},
 \rho_{j,2}^{(\mathsf{S})}) \\
     \beta_{j,t}^{(\mathsf{T})} &amp;\sim N(\phi_j^{(\mathsf{T})}
 \beta_{j,t-1}^{(\mathsf{T})}, V_{\beta,j}^{(\mathsf{T})}) \\
@@ -265,9 +265,9 @@ distributions is straightforward): <span class="math display">\begin{align*}
 (\beta_{j,1t}^{(\mathsf{ST})}, \dots, \beta_{j,pt}^{(\mathsf{ST})})'
 \sim GP(\phi_j^{(\mathsf{ST})}
 \boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})}, \rho_{j,1}^{(\mathsf{ST})},
-\rho_{j,2}^{(\mathsf{ST})}; exp) \mbox{ or } PCAR(\phi_j^{(\mathsf{ST})}
-\boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})}, \rho_{j,1}^{(\mathsf{ST})},
-\rho_{j,2}^{(\mathsf{ST})})
+\rho_{j,2}^{(\mathsf{ST})}; exp) \quad or \quad
+PCAR(\phi_j^{(\mathsf{ST})} \boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})},
+\rho_{j,1}^{(\mathsf{ST})}, \rho_{j,2}^{(\mathsf{ST})})
 \end{align*}</span></p>
 <p>The model is completed with the following priors (again, dropping the
 subscript <span class="math inline">j</span>, since these are common
