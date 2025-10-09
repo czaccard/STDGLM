@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">STDGLM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,6 +60,8 @@
 <span>  point.referenced <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  random.walk <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  interaction <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  n.harmonics <span class="op">=</span> <span class="fl">0</span>,</span>
+<span>  period <span class="op">=</span> <span class="fl">0</span>,</span>
 <span>  blocks_indices <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">W</span>,</span>
 <span>  W_pred <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -113,6 +115,14 @@
 
 <dt id="arg-interaction">interaction<a class="anchor" aria-label="anchor" href="#arg-interaction"></a></dt>
 <dd><p>A logical vector indicating whether to include the spatio-temporal interaction effect. Default is TRUE, meaning all covariates' effects are allowed to interact across space and time. If FALSE, no interactions are included. It is also possible to pass a logical vector of length <em>ncovx</em> to select specific interactions.</p></dd>
+
+
+<dt id="arg-n-harmonics">n.harmonics<a class="anchor" aria-label="anchor" href="#arg-n-harmonics"></a></dt>
+<dd><p>A scalar or a numeric vector of length <em>ncovx</em> with non-negative values for modeling the cyclic behavior of the temporal effects. It stands for the number of harmonics of the Fourier representation. If scalar, 0 indicates that the seasonal behavior should not be modeled. If positive integer, the seasonal behavior is modeled for all temporal effects, and the input <code>random.walk</code> is ignored. Using the same logic, a numeric vector can be provided to select specific effects. Defaults to 0.</p></dd>
+
+
+<dt id="arg-period">period<a class="anchor" aria-label="anchor" href="#arg-period"></a></dt>
+<dd><p>A scalar indicating the period of the data, required for modeling the cyclic behavior. It is ignored whenever <code>n.harmonics=0</code>. Defaults to 0.</p></dd>
 
 
 <dt id="arg-blocks-indices">blocks_indices<a class="anchor" aria-label="anchor" href="#arg-blocks-indices"></a></dt>
@@ -291,8 +301,8 @@
     <p>The fitted model has the following form:
 $$y_{it} \sim F$$
 $$\eta_{it} = g(E( y_{it} )) = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)$$
-$$\boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J$$
-where \(\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p\) and \(J=ncovx\).</p>
+$$\boldsymbol{\beta}_{j, t} = \boldsymbol{G}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J$$
+where either \(\boldsymbol{G}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p\) or \(\boldsymbol{G}_{j,t}\) is block diagonal with harmonic matrices, and \(J=ncovx\).</p>
 <p>The function allows for the decomposition of the state vector into components that can be interpreted as contributions from different sources of variability, that is:
 $$\beta_{it} = \overline{\beta} + \beta_{i}^{(\mathsf{S})} + \beta_{t}^{(\mathsf{T})} + \beta_{it}^{(\mathsf{ST})}$$
 where:</p><dl><dt>\(\overline{\beta}\)</dt>
@@ -373,10 +383,10 @@ Gschlößl, S., &amp; Czado, C. (2007). Spatial modelling of claim frequency and
 <span class="r-in"><span><span class="va">X</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/array.html" class="external-link">array</a></span><span class="op">(</span><span class="fl">1</span>, dim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="va">p</span>, <span class="va">t</span>, <span class="fl">2</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">X</span><span class="op">[</span>,,<span class="fl">2</span><span class="op">]</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="va">ApuliaAQ</span><span class="op">$</span><span class="va">Altitude</span>, <span class="va">p</span>, <span class="va">t</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu">stdglm</span><span class="op">(</span>y<span class="op">=</span><span class="va">y</span>, X<span class="op">=</span><span class="va">X</span>, W<span class="op">=</span><span class="va">W</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">mod</span> <span class="op">&lt;-</span> <span class="fu">stdglm</span><span class="op">(</span>y<span class="op">=</span><span class="va">y</span>, X<span class="op">=</span><span class="va">X</span>, W<span class="op">=</span><span class="va">W</span>, interaction <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Model with spacetime-varying intercept, but fixed altitude effect</span></span></span>
-<span class="r-in"><span><span class="va">mod2</span> <span class="op">&lt;-</span> <span class="fu">stdglm</span><span class="op">(</span>y<span class="op">=</span><span class="va">y</span>, X<span class="op">=</span><span class="va">X</span><span class="op">[</span>,,<span class="fl">1</span>,drop<span class="op">=</span><span class="cn">FALSE</span><span class="op">]</span>, Z<span class="op">=</span><span class="va">X</span><span class="op">[</span>,,<span class="fl">2</span>,drop<span class="op">=</span><span class="cn">FALSE</span><span class="op">]</span>, W<span class="op">=</span><span class="va">W</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">mod2</span> <span class="op">&lt;-</span> <span class="fu">stdglm</span><span class="op">(</span>y<span class="op">=</span><span class="va">y</span>, X<span class="op">=</span><span class="va">X</span><span class="op">[</span>,,<span class="fl">1</span>,drop<span class="op">=</span><span class="cn">FALSE</span><span class="op">]</span>, Z<span class="op">=</span><span class="va">X</span><span class="op">[</span>,,<span class="fl">2</span>,drop<span class="op">=</span><span class="cn">FALSE</span><span class="op">]</span>, W<span class="op">=</span><span class="va">W</span>, interaction <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
