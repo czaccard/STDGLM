@@ -163,64 +163,14 @@ of non-varying coefficients,</p></li>
 <li><p><span class="math inline">\epsilon_{it}</span> is the observation
 error at time <span class="math inline">t</span> at spatial unit <span class="math inline">i</span>.</p></li>
 </ul>
-<p>The evolution of the state vector is described by the following
-<strong>state equation</strong>, which accounts for spatial correlations
-in the state vector: <span class="math display">
-    \boldsymbol{\beta}_{j, t} = \boldsymbol{G}_{j,t}
-\boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad
-\boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}),
-\quad j=1, \dots, J
-</span></p>
-<p>where:</p>
-<ul>
-<li><p><span class="math inline">\boldsymbol{\beta}_{j,t} =
-(\beta_{j,1t}, \dots, \beta_{j,pt})'</span> is the state vector
-related to the <span class="math inline">j</span>-th covariate <span class="math inline">x_{j,t} = (x_{j,1t}, \dots, x_{j,pt})'</span>,
-at time <span class="math inline">t</span> for all spatial
-units,</p></li>
-<li><p><span class="math inline">\boldsymbol{G}_{j,t} =
-\phi_j^{(\mathsf{T})} \boldsymbol{I}_p</span> is a transition
-matrix,</p></li>
-<li><p><span class="math inline">\boldsymbol{\Sigma}_{\eta,j}</span> is
-the covariance matrix of the state evolution error <span class="math inline">\boldsymbol{\eta}_{j,t}</span>.</p></li>
-</ul>
-<p>The transition matrix <span class="math inline">\boldsymbol{G}_{j,t},
-j=1, \dots, J,</span> is assumed to be a scalar multiple of the identity
-matrix. The parameter <span class="math inline">\phi_j^{(\mathsf{T})}</span> controls the temporal
-autocorrelation of the state vector.</p>
-<p>The state evolution covariance matrix <span class="math inline">\boldsymbol{\Sigma}_{\eta,j}</span> can be
-structured to reflect <em>spatial relationships</em>, e.g. by assuming
-an <strong>exponential covariance function</strong> if the data are
-point-referenced: <span class="math display">
-        (\boldsymbol{\Sigma}_{\eta,j})_{i\ell} = \rho_{j,2}
-\exp\left(-\frac{d_{i\ell}}{\rho_{j,2}}\right), \quad d_{i\ell} = \|
-\boldsymbol{s}_i - \boldsymbol{s}_\ell \|
-</span> where <span class="math inline">\rho_{j,1}</span> is the partial
-sill, <span class="math inline">\rho_{j,2}</span> is the range
-parameter, and <span class="math inline">d_{i\ell}</span> is the
-Euclidean distance between locations <span class="math inline">\boldsymbol{s}_i</span> and <span class="math inline">\boldsymbol{s}_\ell</span>. At the moment, this is
-the only supported covariance structure for point-referenced data.</p>
-<p>In this case, the evolution error <span class="math inline">\boldsymbol{\eta}_{j,t}</span> is assumed to be a
-zero-mean Gaussian process with exponential covariance matrix
-parameteterized by <span class="math inline">\rho_{j,1}</span> and <span class="math inline">\rho_{j,2}</span>, which we will denote as <span class="math inline">\boldsymbol{\eta}_{j,t} \sim GP(0, \rho_{j,1},
-\rho_{j,2}; exp)</span>.</p>
-<p>If the data are areal, a <strong>proper conditional autoregressive
-(PCAR) covariance structure</strong> is assumed: <span class="math display">
-    \boldsymbol{\Sigma}_{\eta,j} = \rho_{j,1} \left( \boldsymbol{D}_w -
-\rho_{j,2} \boldsymbol{W} \right)^{-1}
-</span> where <span class="math inline">\boldsymbol{W}</span> is a
-binary adjacency matrix, <span class="math inline">\boldsymbol{D}_w</span> is a diagonal matrix with
-row sums of <span class="math inline">\boldsymbol{W}</span> on the
-diagonal, and <span class="math inline">\rho_{j,1}</span> and <span class="math inline">\rho_{j,2}</span> are the conditional variance and
-autocorrelation parameters, respectively.</p>
-<p>In this case, the evolution error <span class="math inline">\boldsymbol{\eta}_{j,t}</span> follows a zero-mean
-PCAR process, and we will denote this as <span class="math inline">\boldsymbol{\eta}_{j,t} \sim PCAR(0, \rho_{j,1},
-\rho_{j,2})</span>.</p>
+<p>The evolution of the state vector is described by a <strong>state
+equation</strong>, which follows from the ANOVA decomposition of the
+state vector, as described in a later section.</p>
 <div class="section level3">
 <h3 id="supported-distributions">Supported Distributions<a class="anchor" aria-label="anchor" href="#supported-distributions"></a>
 </h3>
-<p>As for version <code>0.1.1</code>, the following distributions for
-the outcome are supported: Gaussian, Poisson, Bernoulli.</p>
+<p>As for the current version, the following distributions for the
+outcome are supported: Gaussian, Poisson, Bernoulli.</p>
 </div>
 <div class="section level3">
 <h3 id="anova-decomposition-of-the-state-vector">ANOVA Decomposition of the State Vector<a class="anchor" aria-label="anchor" href="#anova-decomposition-of-the-state-vector"></a>
@@ -243,6 +193,68 @@ temporal effect at time <span class="math inline">t</span>,</p></li>
 <li><p><span class="math inline">\beta_{it}^{(\mathsf{ST})}</span> is
 the interaction effect between space and time at spatial unit <span class="math inline">i</span> and time <span class="math inline">t</span>.</p></li>
 </ul>
+<div class="section level4">
+<h4 id="spatial-effects">Spatial Effects<a class="anchor" aria-label="anchor" href="#spatial-effects"></a>
+</h4>
+<p>The spatial effects <span class="math inline">\beta_{1}^{(\mathsf{S})}, \dots,
+\beta_{p}^{(\mathsf{S})}</span> are structured to reflect <em>spatial
+relationships</em>. This is achieved by assuming a zero-mean Gaussian
+process with an <strong>exponential covariance function</strong> if the
+data are point-referenced, denoted as <span class="math inline">GP(0,
+\rho_{1}, \rho_{2}; exp)</span>: <span class="math display">
+        Cov(\beta_{i}^{(\mathsf{S})}, \beta_{\ell}^{(\mathsf{S})}) =
+\rho_{1} \exp\left(-\frac{d_{i\ell}}{\rho_{2}}\right), \quad d_{i\ell} =
+\| \boldsymbol{s}_i - \boldsymbol{s}_\ell \|
+</span> where <span class="math inline">\rho_{1}</span> is the partial
+sill, <span class="math inline">\rho_{2}</span> is the range parameter,
+and <span class="math inline">d_{i\ell}</span> is the Euclidean distance
+between locations <span class="math inline">\boldsymbol{s}_i</span> and
+<span class="math inline">\boldsymbol{s}_\ell</span>.</p>
+<p>If the data are areal, a <strong>proper conditional autoregressive
+(PCAR) covariance structure</strong> is assumed: <span class="math display">
+    Var(\beta_{1}^{(\mathsf{S})}, \dots, \beta_{p}^{(\mathsf{S})}) =
+\rho_{1} \left( \boldsymbol{D}_w - \rho_{2} \boldsymbol{W} \right)^{-1}
+</span> where <span class="math inline">\boldsymbol{W}</span> is a
+binary adjacency matrix, <span class="math inline">\boldsymbol{D}_w</span> is a diagonal matrix with
+row sums of <span class="math inline">\boldsymbol{W}</span> on the
+diagonal, and <span class="math inline">\rho_{1}</span> and <span class="math inline">\rho_{2}</span> are the conditional variance and
+autocorrelation parameters, respectively. The zero-mean PCAR process is
+denoted as <span class="math inline">PCAR(0, \rho_{1},
+\rho_{2})</span>.</p>
+</div>
+<div class="section level4">
+<h4 id="temporal-effects">Temporal Effects<a class="anchor" aria-label="anchor" href="#temporal-effects"></a>
+</h4>
+<p>The temporal effects can be specified in three ways:</p>
+<ul>
+<li><p><strong>autoregressive process</strong> of order 1, denoted as
+<span class="math inline">AR(1; \phi^{(\mathsf{T})})</span>: <span class="math display">
+  \beta_{t}^{(\mathsf{T})} = \phi^{(\mathsf{T})}
+\beta_{t-1}^{(\mathsf{T})} + \eta_{t}^{(\mathsf{T})}, \quad
+\eta_{t}^{(\mathsf{T})} \sim N(0, V_\beta^{(\mathsf{T})})
+</span> where <span class="math inline">\phi^{(\mathsf{T})}</span> is
+the temporal autocorrelation parameter and <span class="math inline">V_\beta^{(\mathsf{T})}</span> is the innovation
+variance.</p></li>
+<li><p><strong>random walk</strong>, denoted as <span class="math inline">RW</span>, which is a special case of the <span class="math inline">AR(1)</span> process with <span class="math inline">\phi^{(\mathsf{T})} = 1</span></p></li>
+<li><p><strong>seasonal</strong> component, denoted as <span class="math inline">SEAS(q)</span>, where <span class="math inline">q</span> is the number of harmonics to include. The
+seasonal component is modeled as: <span class="math display">
+  \beta_{t}^{(\mathsf{T})} = \boldsymbol{F} \boldsymbol{\theta}_t \\
+  \boldsymbol{\theta}_t = \boldsymbol{G} \boldsymbol{\theta}_{t-1} +
+\boldsymbol{\eta}_t, \quad \boldsymbol{\eta}_t \sim N(0,
+V_\beta^{(\mathsf{T})} \boldsymbol{I}_{2q})
+</span> where <span class="math inline">\boldsymbol{F} = (1, 0, 1, 0,
+\dots, 1, 0)</span> is a <span class="math inline">1 \times 2q</span>
+matrix, <span class="math inline">\boldsymbol{G}</span> is a <span class="math inline">2q \times 2q</span> block diagonal matrix with the
+<span class="math inline">k</span>-th block of the form <span class="math display">    
+  \begin{pmatrix}
+      \cos(2\pi k / R) &amp; \sin(2\pi k / R) \\
+      -\sin(2\pi k / R) &amp; \cos(2\pi k / R)
+  \end{pmatrix}, \quad k=1, \dots, q
+</span> and <span class="math inline">R</span> is the period of the
+seasonal component (e.g., <span class="math inline">R=12</span> for
+monthly data with yearly seasonality).</p></li>
+</ul>
+</div>
 </div>
 <div class="section level3">
 <h3 id="bayesian-hierarchical-structure">Bayesian Hierarchical Structure<a class="anchor" aria-label="anchor" href="#bayesian-hierarchical-structure"></a>
@@ -259,8 +271,8 @@ distributions is straightforward): <span class="math display">\begin{align*}
 \sim GP(0, \rho_{j,1}^{(\mathsf{S})}, \rho_{j,2}^{(\mathsf{S})}; exp)
 \quad or \quad PCAR(0, \rho_{j,1}^{(\mathsf{S})},
 \rho_{j,2}^{(\mathsf{S})}) \\
-    \beta_{j,t}^{(\mathsf{T})} &amp;\sim N(\phi_j^{(\mathsf{T})}
-\beta_{j,t-1}^{(\mathsf{T})}, V_{\beta,j}^{(\mathsf{T})}) \\
+    \beta_{j,t}^{(\mathsf{T})} &amp;\sim AR(1; \phi_j^{(\mathsf{T})})
+\quad or \quad RW \quad or \quad SEAS(q_j) \\
     \boldsymbol{\beta}_{j,t}^{(\mathsf{ST})} &amp;=
 (\beta_{j,1t}^{(\mathsf{ST})}, \dots, \beta_{j,pt}^{(\mathsf{ST})})'
 \sim GP(\phi_j^{(\mathsf{ST})}
@@ -270,8 +282,7 @@ PCAR(\phi_j^{(\mathsf{ST})} \boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})},
 \rho_{j,1}^{(\mathsf{ST})}, \rho_{j,2}^{(\mathsf{ST})})
 \end{align*}</span></p>
 <p>The model is completed with the following priors (again, dropping the
-subscript <span class="math inline">j</span>, since these are common
-across <span class="math inline">j</span>): <span class="math display">\begin{align*}
+subscript <span class="math inline">j</span> for simplicity): <span class="math display">\begin{align*}
     \overline{\beta} &amp;\sim N(0, V_\gamma) \\
     \beta_{0}^{(\mathsf{T})} &amp;\sim N(0, V_{\beta_0}) \\
     \boldsymbol{\beta}_{0}^{(\mathsf{ST})} &amp;\sim N_p(0, V_{\beta_0}
