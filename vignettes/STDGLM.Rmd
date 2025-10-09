@@ -85,40 +85,12 @@ where:
 
 - \(\epsilon_{it}\) is the observation error at time \(t\) at spatial unit $i$.
 
-The evolution of the state vector is described by the following **state equation**, which accounts for spatial correlations in the state vector:
-$$
-    \boldsymbol{\beta}_{j, t} = \boldsymbol{G}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J
-$$
+The evolution of the state vector is described by a **state equation**, which follows from the ANOVA decomposition of the state vector, as described in a later section.
 
-where:
-
-- \(\boldsymbol{\beta}_{j,t} = (\beta_{j,1t}, \dots, \beta_{j,pt})'\) is the state vector related to the \(j\)-th covariate \( x_{j,t} = (x_{j,1t}, \dots, x_{j,pt})'\), at time \(t\) for all spatial units,
-
-- \(\boldsymbol{G}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p\) is a transition matrix,
-
-- \(\boldsymbol{\Sigma}_{\eta,j}\) is the covariance matrix of the state evolution error \(\boldsymbol{\eta}_{j,t}\).
-
-The transition matrix \(\boldsymbol{G}_{j,t}, j=1, \dots, J,\) is assumed to be a scalar multiple of the identity matrix. The parameter \(\phi_j^{(\mathsf{T})}\) controls the temporal autocorrelation of the state vector.
-
-The state evolution covariance matrix $\boldsymbol{\Sigma}_{\eta,j}$ can be structured to reflect *spatial relationships*, e.g. by assuming an **exponential covariance function** if the data are point-referenced:
-$$
-        (\boldsymbol{\Sigma}_{\eta,j})_{i\ell} = \rho_{j,2} \exp\left(-\frac{d_{i\ell}}{\rho_{j,2}}\right), \quad d_{i\ell} = \| \boldsymbol{s}_i - \boldsymbol{s}_\ell \|
-$$
-where $\rho_{j,1}$ is the partial sill, $\rho_{j,2}$ is the range parameter, and $d_{i\ell}$ is the Euclidean distance between locations $\boldsymbol{s}_i$ and $\boldsymbol{s}_\ell$. At the moment, this is the only supported covariance structure for point-referenced data.
-
-In this case, the evolution error $\boldsymbol{\eta}_{j,t}$ is assumed to be a zero-mean Gaussian process with exponential covariance matrix parameteterized by $\rho_{j,1}$ and $\rho_{j,2}$, which we will denote as $\boldsymbol{\eta}_{j,t} \sim GP(0, \rho_{j,1}, \rho_{j,2}; exp)$.
-
-If the data are areal, a **proper conditional autoregressive (PCAR) covariance structure** is assumed:
-$$
-    \boldsymbol{\Sigma}_{\eta,j} = \rho_{j,1} \left( \boldsymbol{D}_w - \rho_{j,2} \boldsymbol{W} \right)^{-1}
-$$
-where $\boldsymbol{W}$ is a binary adjacency matrix, $\boldsymbol{D}_w$ is a diagonal matrix with row sums of $\boldsymbol{W}$ on the diagonal, and $\rho_{j,1}$ and $\rho_{j,2}$ are the conditional variance and autocorrelation parameters, respectively.
-
-In this case, the evolution error $\boldsymbol{\eta}_{j,t}$ follows a zero-mean PCAR process, and we will denote this as $\boldsymbol{\eta}_{j,t} \sim PCAR(0, \rho_{j,1}, \rho_{j,2})$.
 
 
 ## Supported Distributions
-As for version `0.1.1`, the following distributions for the outcome are supported: Gaussian, Poisson, Bernoulli.
+As for the current version, the following distributions for the outcome are supported: Gaussian, Poisson, Bernoulli.
 
 
 ## ANOVA Decomposition of the State Vector
@@ -137,17 +109,60 @@ where:
 - \(\beta_{it}^{(\mathsf{ST})}\) is the interaction effect between space and time at spatial unit \(i\) and time \(t\).
 
 
+### Spatial Effects
+The spatial effects $\beta_{1}^{(\mathsf{S})}, \dots, \beta_{p}^{(\mathsf{S})}$ are structured to reflect *spatial relationships*. This is achieved by assuming a zero-mean Gaussian process with an **exponential covariance function** if the data are point-referenced, denoted as $GP(0, \rho_{1}, \rho_{2}; exp)$:
+$$
+        Cov(\beta_{i}^{(\mathsf{S})}, \beta_{\ell}^{(\mathsf{S})}) = \rho_{1} \exp\left(-\frac{d_{i\ell}}{\rho_{2}}\right), \quad d_{i\ell} = \| \boldsymbol{s}_i - \boldsymbol{s}_\ell \|
+$$
+where $\rho_{1}$ is the partial sill, $\rho_{2}$ is the range parameter, and $d_{i\ell}$ is the Euclidean distance between locations $\boldsymbol{s}_i$ and $\boldsymbol{s}_\ell$. 
+
+If the data are areal, a **proper conditional autoregressive (PCAR) covariance structure** is assumed:
+$$
+    Var(\beta_{1}^{(\mathsf{S})}, \dots, \beta_{p}^{(\mathsf{S})}) = \rho_{1} \left( \boldsymbol{D}_w - \rho_{2} \boldsymbol{W} \right)^{-1}
+$$
+where $\boldsymbol{W}$ is a binary adjacency matrix, $\boldsymbol{D}_w$ is a diagonal matrix with row sums of $\boldsymbol{W}$ on the diagonal, and $\rho_{1}$ and $\rho_{2}$ are the conditional variance and autocorrelation parameters, respectively. The zero-mean PCAR process is denoted as $PCAR(0, \rho_{1}, \rho_{2})$.
+
+
+### Temporal Effects
+The temporal effects can be specified in three ways:
+
+- **autoregressive process** of order 1, denoted as $AR(1; \phi^{(\mathsf{T})})$:
+$$
+    \beta_{t}^{(\mathsf{T})} = \phi^{(\mathsf{T})} \beta_{t-1}^{(\mathsf{T})} + \eta_{t}^{(\mathsf{T})}, \quad \eta_{t}^{(\mathsf{T})} \sim N(0, V_\beta^{(\mathsf{T})})
+$$
+where $\phi^{(\mathsf{T})}$ is the temporal autocorrelation parameter and $V_\beta^{(\mathsf{T})}$ is the innovation variance.
+
+- **random walk**, denoted as $RW$, which is a special case of the $AR(1)$ process with $\phi^{(\mathsf{T})} = 1$
+
+- **seasonal** component, denoted as $SEAS(q)$, where $q$ is the number of harmonics to include. The seasonal component is modeled as:
+$$
+    \beta_{t}^{(\mathsf{T})} = \boldsymbol{F} \boldsymbol{\theta}_t \\
+    \boldsymbol{\theta}_t = \boldsymbol{G} \boldsymbol{\theta}_{t-1} + \boldsymbol{\eta}_t, \quad \boldsymbol{\eta}_t \sim N(0, V_\beta^{(\mathsf{T})} \boldsymbol{I}_{2q})
+$$
+where $\boldsymbol{F} = (1, 0, 1, 0, \dots, 1, 0)$ is a $1 \times 2q$ matrix, $\boldsymbol{G}$ is a $2q \times 2q$ block diagonal matrix with the $k$-th block of the form
+$$    
+    \begin{pmatrix}
+        \cos(2\pi k / R) & \sin(2\pi k / R) \\
+        -\sin(2\pi k / R) & \cos(2\pi k / R)
+    \end{pmatrix}, \quad k=1, \dots, q
+$$
+and $R$ is the period of the seasonal component (e.g., $R=12$ for monthly data with yearly seasonality).
+
+
+
+
+
 ## Bayesian Hierarchical Structure
 For Gaussian outcomes, the Bayesian model is as follows, for $t=1, \dots, T$ and $j=1, \dots, J$ (generalization to other distributions is straightforward):
 \begin{align*}
     y_{it} &\sim N(\boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma}, \sigma_\epsilon^2) \\
     \boldsymbol{\beta}_{j,t} &= \boldsymbol{1}_p \overline{\beta}_j + \boldsymbol{\beta}_j^{(\mathsf{S})} + \boldsymbol{1}_p \beta_{j,t}^{(\mathsf{T})} + \boldsymbol{\beta}_{j,t}^{(\mathsf{ST})} \\
     \boldsymbol{\beta_j}^{(\mathsf{S})} &= (\beta_{j,1}^{(\mathsf{S})}, \dots, \beta_{j,p}^{(\mathsf{S})})' \sim GP(0, \rho_{j,1}^{(\mathsf{S})}, \rho_{j,2}^{(\mathsf{S})}; exp) \quad or \quad PCAR(0, \rho_{j,1}^{(\mathsf{S})}, \rho_{j,2}^{(\mathsf{S})}) \\
-    \beta_{j,t}^{(\mathsf{T})} &\sim N(\phi_j^{(\mathsf{T})} \beta_{j,t-1}^{(\mathsf{T})}, V_{\beta,j}^{(\mathsf{T})}) \\
+    \beta_{j,t}^{(\mathsf{T})} &\sim AR(1; \phi_j^{(\mathsf{T})}) \quad or \quad RW \quad or \quad SEAS(q_j) \\
     \boldsymbol{\beta}_{j,t}^{(\mathsf{ST})} &= (\beta_{j,1t}^{(\mathsf{ST})}, \dots, \beta_{j,pt}^{(\mathsf{ST})})' \sim GP(\phi_j^{(\mathsf{ST})} \boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})}, \rho_{j,1}^{(\mathsf{ST})}, \rho_{j,2}^{(\mathsf{ST})}; exp) \quad or \quad PCAR(\phi_j^{(\mathsf{ST})} \boldsymbol{\beta}_{j,t-1}^{(\mathsf{ST})}, \rho_{j,1}^{(\mathsf{ST})}, \rho_{j,2}^{(\mathsf{ST})})
 \end{align*}
 
-The model is completed with the following priors (again, dropping the subscript $j$, since these are common across $j$):
+The model is completed with the following priors (again, dropping the subscript $j$ for simplicity):
 \begin{align*}
     \overline{\beta} &\sim N(0, V_\gamma) \\
     \beta_{0}^{(\mathsf{T})} &\sim N(0, V_{\beta_0}) \\
