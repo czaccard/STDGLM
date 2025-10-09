@@ -57,7 +57,7 @@ Eigen::SparseMatrix<double> createBlockDiagonal_dense(const Eigen::MatrixXd& blo
 }
 
 
-Eigen::SparseMatrix<double> createBlockDiagonal(const Eigen::SparseMatrix<double>& block, const double& initial, int T) {
+/*Eigen::SparseMatrix<double> createBlockDiagonal(const Eigen::SparseMatrix<double>& block, const double& initial, int T) {
   int m = block.rows();
   int rows = m * T;
   int cols = m * T;
@@ -84,6 +84,95 @@ Eigen::SparseMatrix<double> createBlockDiagonal(const Eigen::SparseMatrix<double
   Eigen::SparseMatrix<double> result(rows, cols);
   result.setFromTriplets(tripletList.begin(), tripletList.end());
   return result;
+}*/
+
+
+Eigen::SparseMatrix<double> createBlockDiagonal(
+    const Eigen::SparseMatrix<double>& block, 
+    const double& initial, 
+    int T, 
+    int k) 
+{
+    // Dimension of the square block matrix
+    int m = block.rows();
+
+    // Total dimensions of the resulting matrix
+    int rows = m * T;
+    int cols = m * T;
+
+    // Type definition for triplets
+    typedef Eigen::Triplet<double> Tpl;
+    std::vector<Tpl> tripletList;
+
+    // Reserve memory: (T - abs(k)) blocks will be placed, each with block.nonZeros() elements.
+    int num_blocks = std::max(0, T - std::abs(k));
+    if (k == 0) {
+        // For the main diagonal, the very first block is handled by 'initial', then T-1 blocks use 'block'.
+        tripletList.reserve(m + (T - 1) * block.nonZeros());
+    } else {
+        tripletList.reserve(num_blocks * block.nonZeros());
+    }
+    
+    // Determine the starting block index (t_start) and the number of blocks to place.
+    // The iteration will run from t = t_start up to T-1.
+    int t_start = 0;
+    
+    // The number of row-blocks that actually get a block placed on the specified k-diagonal
+    int num_diag_blocks = T - std::abs(k); 
+
+    // Adjust the starting index based on the offset 'k'
+    // For k < 0 (below main diagonal), we start placing blocks from block row |k|.
+    // For k >= 0 (main or above), we start from block row 0.
+    int block_row_start = std::max(0, -k);
+    int block_col_start = std::max(0, k);
+
+    // The iteration goes over the number of blocks that *can* be placed on this diagonal.
+    for (int t = 0; t < num_diag_blocks; ++t) {
+        
+        // --- Calculate global block indices (block-of-blocks coordinates) ---
+        // t_row is the block row index (0 to T-1)
+        // t_col is the block column index (0 to T-1)
+        int t_row = block_row_start + t;
+        int t_col = block_col_start + t;
+
+        // --- Calculate global scalar offsets ---
+        // rowOffset: starting global row index for the current block
+        // colOffset: starting global column index for the current block
+        int rowOffset = t_row * m;
+        int colOffset = t_col * m;
+
+        // --- Block Placement Logic ---
+        if (k == 0 && t == 0) {
+            // Special Case: The very first block on the main diagonal (t_row=0, t_col=0)
+            // Use the 'initial' value to create a diagonal sub-matrix.
+            for (int i = 0; i < m; ++i) {
+                tripletList.emplace_back(rowOffset + i, colOffset + i, initial); 
+            }
+        } else {
+            // General Case: Place a copy of the 'block' matrix.
+            // Iterate over the non-zero elements of the input 'block'
+            for (int j = 0; j < block.outerSize(); ++j) {
+                for (Eigen::SparseMatrix<double>::InnerIterator it(block, j); it; ++it) {
+                    
+                    // Add the current block element to the triplet list, applying the offsets
+                    // Global row = block's local row + rowOffset
+                    // Global col = block's local col + colOffset
+                    tripletList.emplace_back(
+                        rowOffset + it.row(), 
+                        colOffset + it.col(), 
+                        it.value()
+                    );
+                }
+            }
+        }
+    }
+
+    // Construct the final SparseMatrix from the list of triplets
+    Eigen::SparseMatrix<double> result(rows, cols);
+    result.setFromTriplets(tripletList.begin(), tripletList.end());
+    result.makeCompressed();
+    
+    return result;
 }
 
 

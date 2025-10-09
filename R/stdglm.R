@@ -11,6 +11,8 @@
 #' @param point.referenced A logical indicating whether the data are point-referenced (TRUE) or areal (FALSE). Default is TRUE. If FALSE, predictions are not performed.
 #' @param random.walk A logical indicating whether the temporal dynamic should be modeled as a random walk (TRUE) or a first-order autoregressive process (FALSE). Default is FALSE.
 #' @param interaction A logical vector indicating whether to include the spatio-temporal interaction effect. Default is TRUE, meaning all covariates' effects are allowed to interact across space and time. If FALSE, no interactions are included. It is also possible to pass a logical vector of length \emph{ncovx} to select specific interactions.
+#' @param n.harmonics A scalar or a numeric vector of length \emph{ncovx} with non-negative values for modeling the cyclic behavior of the temporal effects. It stands for the number of harmonics of the Fourier representation. If scalar, 0 indicates that the seasonal behavior should not be modeled. If positive integer, the seasonal behavior is modeled for all temporal effects, and the input \code{random.walk} is ignored. Using the same logic, a numeric vector can be provided to select specific effects. Defaults to 0.
+#' @param period A scalar indicating the period of the data, required for modeling the cyclic behavior. It is ignored whenever \code{n.harmonics=0}. Defaults to 0.
 #' @param blocks_indices A list of integer vectors indicating the indices of the blocks for spatial predictions. Defaults to \code{NULL}, if no predictions are needed. See details.
 #' @param W A \emph{p}-by-\emph{p} matrix corresponding to the spatial weights matrix. If \code{point.referenced} is TRUE, the distance matrix among the observed locations should be provided. If \code{point.referenced} is FALSE, the 0/1 adjacency matrix should be provided.
 #' @param W_pred A list with \emph{p_b}-by-\emph{p_b} matrices corresponding to the distance matrix for the prediction locations in the b-th block, for \emph{b} in \code{1:length(blocks_indices)}. If \code{NULL}, predictions are not performed.
@@ -31,8 +33,8 @@
 #' @details The fitted model has the following form:
 #' \deqn{y_{it} \sim F}
 #' \deqn{\eta_{it} = g(E( y_{it} )) = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)}
-#' \deqn{\boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J}
-#' where \eqn{\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p} and \eqn{J=ncovx}. 
+#' \deqn{\boldsymbol{\beta}_{j, t} = \boldsymbol{G}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J}
+#' where either \eqn{\boldsymbol{G}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p} or \eqn{\boldsymbol{G}_{j,t}} is block diagonal with harmonic matrices, and \eqn{J=ncovx}. 
 #' 
 #' The function allows for the decomposition of the state vector into components that can be interpreted as contributions from different sources of variability, that is:
 #' \deqn{\beta_{it} = \overline{\beta} + \beta_{i}^{(\mathsf{S})} + \beta_{t}^{(\mathsf{T})} + \beta_{it}^{(\mathsf{ST})}}
@@ -124,10 +126,10 @@
 #' X = array(1, dim = c(p, t, 2))
 #' X[,,2] = matrix(ApuliaAQ$Altitude, p, t)
 #' 
-#' mod <- stdglm(y=y, X=X, W=W)
+#' mod <- stdglm(y=y, X=X, W=W, interaction = FALSE)
 #' 
 #' # Model with spacetime-varying intercept, but fixed altitude effect
-#' mod2 <- stdglm(y=y, X=X[,,1,drop=FALSE], Z=X[,,2,drop=FALSE], W=W)
+#' mod2 <- stdglm(y=y, X=X[,,1,drop=FALSE], Z=X[,,2,drop=FALSE], W=W, interaction = FALSE)
 #' }
 #'
 #' @seealso \code{vignette("STDGLM")}.
@@ -140,6 +142,7 @@
 stdglm = function(y, family = "gaussian", X, Z = NULL, offset = NULL, 
                   point.referenced = TRUE, random.walk = FALSE, 
                   interaction = TRUE,
+                  n.harmonics = 0, period = 0,
                   blocks_indices = NULL, W, W_pred = NULL, W_cross = NULL, 
                   X_pred = NULL, Z_pred = NULL, offset_pred = NULL,
                   ncores = NULL,
@@ -170,9 +173,15 @@ stdglm = function(y, family = "gaussian", X, Z = NULL, offset = NULL,
   if (length(V_beta_0) == 1) V_beta_0 = rep(V_beta_0, dim(X)[3])
   V_gamma = prior$V_gamma
   a_inn_time = prior$a_inn_time
-  if (length(a_inn_time) == 1) a_inn_time = rep(a_inn_time, dim(X)[3])
+  if (length(a_inn_time) == 1) {
+    at1 = TRUE
+    a_inn_time = rep(a_inn_time, dim(X)[3])
+  }
   b_inn_time = prior$b_inn_time
-  if (length(b_inn_time) == 1) b_inn_time = rep(b_inn_time, dim(X)[3])
+  if (length(b_inn_time) == 1) {
+    bt1 = TRUE
+    b_inn_time = rep(b_inn_time, dim(X)[3])
+  }
   a_rho1s = prior$a_rho1s
   if (length(a_rho1s) == 1) a_rho1s = rep(a_rho1s, dim(X)[3])
   b_rho1s = prior$b_rho1s
@@ -205,6 +214,7 @@ stdglm = function(y, family = "gaussian", X, Z = NULL, offset = NULL,
   
   ncovx = dim(X)[3]
   stopifnot("'interaction' has wrong length." = length(interaction) == 1 || length(interaction) == ncovx)
+  stopifnot("'n.harmonics' has wrong length." = length(n.harmonics) == 1 || length(n.harmonics) == ncovx)
   X = lapply(1:ncovx, \(i) X[,,i])
   if (!is.null(Z)) {
     stopifnot("NA not allowed in Z" = !any(is.na(Z)))
@@ -249,12 +259,25 @@ stdglm = function(y, family = "gaussian", X, Z = NULL, offset = NULL,
   }
   interaction = as.numeric(interaction)
 
+  if (length(n.harmonics) == 1) {
+    n.harmonics = rep(n.harmonics, ncovx)
+  }
+  for (j in 1:ncovx) {
+    if (n.harmonics[j] > 0 && at1) {
+      a_inn_time[j] = 1e10
+    }
+    if (n.harmonics[j] > 0 && bt1) {
+      b_inn_time[j] = 1e-10
+    }
+  }
+
   if (is.null(ncores)) ncores = 1
   RcppParallel::setThreadOptions(numThreads = ncores)
 
   re = dlm_cpp(y, family, X, Z, offset,
                point.referenced, random.walk, 
                interaction,
+               n.harmonics, period,
                blocks_indices,
                W, W_pred, W_cross, 
                X_pred, Z_pred, offset_pred,

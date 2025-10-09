@@ -148,6 +148,8 @@ Rcpp::List dlm_cpp(
     const bool& point_referenced,
     const bool& random_walk,
     const Eigen::VectorXd& ST, // ST interaction effect indicator
+    const Eigen::VectorXd& q_seasonal, // seasonal T-beta: 0 = no, >0 number of harmonics
+    const double& period_seasonal, // period of seasonal component (e.g., 12 for monthly data)
     const std::vector<std::vector<int>>& blocks_indices,
     const Eigen::MatrixXd& W_dense,
     const std::vector<Eigen::MatrixXd>& W_pred_dense,
@@ -288,7 +290,11 @@ Rcpp::List dlm_cpp(
 
     // Initialize prediction and interpolation effects
     for (int k = 0; k < ncovx; ++k) {
-      Btime_pred_draw[k].setZero(1, h_ahead); // Time effect T-beta
+      int q = 1;
+      if (q_seasonal(k) > 0) {
+        q = static_cast<int>(2 * q_seasonal(k));
+      }
+      Btime_pred_draw[k].setZero(q, h_ahead); // Time effect T-beta
       Bspace_pred_draw[k].setZero(p_new, 1); // Space effect S-beta
       Bspacetime_pred_obs_sites[k].setZero(p, t_new); // Space-time effect ST-beta at observed sites
       Bspacetime_pred_draw[k].setZero(p_new, t_new); // Space-time effect ST-beta
@@ -391,6 +397,7 @@ Rcpp::List dlm_cpp(
   Eigen::VectorXd rho2_space_draw = Eigen::VectorXd::Constant(ncovx, std::max(0.5*max_rho2, min_rho2));
   Eigen::VectorXd rho2_space_time_draw = Eigen::VectorXd::Constant(ncovx, std::max(0.5*max_rho2, min_rho2));
   Eigen::VectorXd Q1invdraw_time = Eigen::VectorXd::Constant(ncovx, 10.0); // Precision for T-beta
+  std::vector<Eigen::VectorXd> Q1invdraw_seasonal(ncovx); // Precision for seasonal T-beta
   double s2_err_mis_draw = 0.01; // Measurement error variance
   
   // Effects: each slice is a matrix
@@ -399,6 +406,17 @@ Rcpp::List dlm_cpp(
   std::vector<Eigen::MatrixXd> Btimedraw(ncovx, Eigen::MatrixXd::Zero(1, t));   // Time effect T-beta
   std::vector<Eigen::MatrixXd> Bspacedraw(ncovx, Eigen::MatrixXd::Zero(p, 1));  // Space effect S-beta
   std::vector<Eigen::MatrixXd> Bspacetimedraw(ncovx, Eigen::MatrixXd::Zero(p, t)); // Space-time effect ST-beta
+  std::vector<Eigen::MatrixXd> Bseasonaldraw(ncovx); // Seasonal effect if q_seasonal > 0
+  for (int k = 0; k < ncovx; ++k) {
+    if (q_seasonal(k) > 0) {
+      int qk = static_cast<int>(2 * q_seasonal(k));
+      Bseasonaldraw[k].setZero(qk, t);
+      Q1invdraw_seasonal[k] = Eigen::VectorXd::Constant(qk, 10.0);
+    } else {
+      Bseasonaldraw[k].setZero(1, 1); // Placeholder
+      Q1invdraw_seasonal[k] = Eigen::VectorXd::Constant(1, 10.0);
+    }
+  }
   
   // Z coefficients and covariate contributions
   Eigen::VectorXd gamma_draw; // Will be resized later if ncovz > 0
@@ -553,37 +571,7 @@ Rcpp::List dlm_cpp(
   
   
   
-  // Dimensions
-  const int q = 1;
-  const int q2 = p;
-  const int Tq = t * q;
-  const int Tq2 = t * q2;
-  
-  
-  
-  // Construct sparse difference matrix H (Tq x Tq)
-  Eigen::SparseMatrix<double> H(Tq, Tq);
-  std::vector<Eigen::Triplet<double>> triplets_H;
-  for (int i = 0; i < Tq; ++i) {
-    triplets_H.emplace_back(i, i, 1.0);
-    if (i >= q) {
-      triplets_H.emplace_back(i, i - q, -1.0);
-    }
-  }
-  H.setFromTriplets(triplets_H.begin(), triplets_H.end());
-  
-  // Construct sparse difference matrix H2 (Tq2 x Tq2)
-  Eigen::SparseMatrix<double> H2(Tq2, Tq2);
-  std::vector<Eigen::Triplet<double>> triplets_H2;
-  for (int i = 0; i < Tq2; ++i) {
-    triplets_H2.emplace_back(i, i, 1.0);
-    if (i >= q2) {
-      triplets_H2.emplace_back(i, i - q2, -1.0);
-    }
-  }
-  H2.setFromTriplets(triplets_H2.begin(), triplets_H2.end());
-  
-  
+  // Precompute bigG, bigG2, bigG3 matrices for all covariates
   std::vector<Eigen::SparseMatrix<double>> bigG(ncovx);   // pt x t
   std::vector<Eigen::SparseMatrix<double>> bigG2(ncovx);  // pt x pt
   std::vector<Eigen::SparseMatrix<double>> bigG3(ncovx);  // pt x p
@@ -592,15 +580,31 @@ Rcpp::List dlm_cpp(
     std::vector<Eigen::Triplet<double>> triplets_G;
     std::vector<Eigen::Triplet<double>> triplets_G2;
     std::vector<Eigen::Triplet<double>> triplets_G3;
+
+    int q = 1;
+    if (q_seasonal(k) > 0) {
+      q = static_cast<int>(2 * q_seasonal(k));
+    }
     
     for (int i = 0; i < t; ++i) {
       const Eigen::VectorXd& x_col = X[k].col(i);  // p x 1
       
-      // bigG: pt x t (each column is stacked x_col)
-      for (int j = 0; j < p; ++j) {
-        triplets_G.emplace_back(i * p + j, i, x_col(j));
+      if (q_seasonal(k) > 0) {
+        // bigG: pt x qt
+        int q_s = static_cast<int>(q_seasonal(k));
+        for (int j = 0; j < p; ++j) {
+          for (int r = 0; r < q_s; ++r) {
+            int idx = i * q + r * 2;
+            triplets_G.emplace_back(i * p + j, idx, x_col(j));
+          }
+        }
+      } else {
+        // bigG: pt x t (each column is stacked x_col)
+        for (int j = 0; j < p; ++j) {
+          triplets_G.emplace_back(i * p + j, i, x_col(j));
+        }
       }
-      
+            
       // bigG2: pt x pt (block diagonal of diag(x_col))
       for (int j = 0; j < p; ++j) {
         int idx = i * p + j;
@@ -613,7 +617,7 @@ Rcpp::List dlm_cpp(
       }
     }
     
-    Eigen::SparseMatrix<double> G(p * t, t);
+    Eigen::SparseMatrix<double> G(p * t, t * q);
     G.setFromTriplets(triplets_G.begin(), triplets_G.end());
     bigG[k] = G;
     
@@ -721,6 +725,18 @@ Rcpp::List dlm_cpp(
   std::vector<Eigen::MatrixXd> Bspace2_postmean(ncovx, Eigen::MatrixXd::Zero(p, 1));
   std::vector<Eigen::MatrixXd> Bspacetime_postmean(ncovx, Eigen::MatrixXd::Zero(p, t));
   std::vector<Eigen::MatrixXd> Bspacetime2_postmean(ncovx, Eigen::MatrixXd::Zero(p, t));
+  std::vector<Eigen::MatrixXd> Bseasonal_postmean(ncovx);
+  std::vector<Eigen::MatrixXd> Bseasonal2_postmean(ncovx);
+  for (int k = 0; k < ncovx; ++k) {
+    if (q_seasonal(k) > 0) {
+      int qk = static_cast<int>(2 * q_seasonal(k));
+      Bseasonal_postmean[k].setZero(qk, t);
+      Bseasonal2_postmean[k].setZero(qk, t);
+    } else {
+      Bseasonal_postmean[k].setZero(1, 1); // Placeholder
+      Bseasonal2_postmean[k].setZero(1, 1); // Placeholder
+    }
+  }
   
   std::vector<Eigen::MatrixXd> B2_c_t(ncovx, Eigen::MatrixXd::Zero(1, t));
   std::vector<Eigen::MatrixXd> B2_c_s(ncovx, Eigen::MatrixXd::Zero(p, 1));
@@ -747,6 +763,8 @@ Rcpp::List dlm_cpp(
   std::vector<Eigen::MatrixXd> Bspacetime_pred_postmean(ncovx);
   std::vector<Eigen::MatrixXd> Bspacetime_pred2_postmean(ncovx);
   std::vector<Eigen::MatrixXd> B_pred2_c_t_s_st(ncovx);
+  std::vector<Eigen::MatrixXd> Bseasonal_pred_postmean(ncovx);
+  std::vector<Eigen::MatrixXd> Bseasonal_pred2_postmean(ncovx);
   if (X_pred_nullable.isNotNull()) {
     Ypred_mean.setZero(p_new, t_new);
     Ypred2_mean.setZero(p_new, t_new); // Sum of squares for variance
@@ -764,6 +782,14 @@ Rcpp::List dlm_cpp(
       Bspacetime_pred_postmean[k].setZero(p_new, t_new); // Space-time effect ST-beta
       Bspacetime_pred2_postmean[k].setZero(p_new, t_new); // Space-time effect ST-beta squared
       B_pred2_c_t_s_st[k].setZero(p_new, t_new);
+      if (q_seasonal(k) > 0) {
+        int qk = static_cast<int>(2 * q_seasonal(k));
+        Bseasonal_pred_postmean[k].setZero(qk, t_new);
+        Bseasonal_pred2_postmean[k].setZero(qk, t_new);
+      } else {
+        Bseasonal_pred_postmean[k].setZero(1, 1); // Placeholder
+        Bseasonal_pred2_postmean[k].setZero(1, 1); // Placeholder
+      }
     }
   }
   
@@ -798,28 +824,92 @@ Rcpp::List dlm_cpp(
     }
 
     for (int k = 0; k < ncovx; ++k) {
+      int q = 1;
+      if (q_seasonal(k) > 0) {
+        q = static_cast<int>(2 * q_seasonal(k));
+      }
+      int Tq = t * q;
+      Eigen::MatrixXd G_seasonal = Eigen::MatrixXd::Zero(1, q);
+      for (int r = 0; r < q/2; ++r) {
+        G_seasonal(0, r*2) = 1.0;
+      }
+
+
       Eigen::VectorXd y_k = y2_vec;
       for (int k2 = 0; k2 < ncovx; ++k2) {
         if (k == k2) continue;
-        y_k -= bigG[k2] * Btimedraw[k2].row(0).transpose();
+        if (q_seasonal(k2) > 0) {
+          Eigen::VectorXd bseas = Eigen::Map<Eigen::VectorXd>(Bseasonaldraw[k2].data(), Bseasonaldraw[k2].size());
+          y_k -= bigG[k2] * bseas;
+        } else {
+          y_k -= bigG[k2] * Btimedraw[k2].row(0).transpose();
+        }
       }
+
+      // Construct sparse difference matrix H (Tq x Tq)
+      Eigen::SparseMatrix<double> H(Tq, Tq);
+      std::vector<Eigen::Triplet<double>> triplets_H;
       
-      // Construct prior precision matrix K = H^T * invS * H
+      // Construct matrix invS
       Eigen::SparseMatrix<double> invS_diag(Tq, Tq);
       std::vector<Eigen::Triplet<double>> invS_triplets;
-      for (int i = 0; i < Tq; ++i) {
-        invS_triplets.emplace_back(i, i, Q1invdraw_time(k));
+      for (int i = 0; i < q; ++i) {
+        invS_triplets.emplace_back(i, i, 1.0 / V_beta_0(k));  // prior for T-beta_0
       }
-      invS_triplets[0] = Eigen::Triplet<double>(0, 0, 1.0 / V_beta_0(k));  // diffuse prior
+
+      Eigen::SparseMatrix<double> F_seasonal(q, q);
+      std::vector<Eigen::Triplet<double>> triplets_Fs;
+      if (q_seasonal(k) > 0) {
+        int q_s = static_cast<int>(q_seasonal(k));
+        for (int r = 0; r < q_s; ++r) {
+          int rowOffset = r * 2;
+          int colOffset = r * 2;
+          triplets_Fs.emplace_back(rowOffset, colOffset, std::cos(2.0 * M_PI * (r + 1.0) / period_seasonal));
+          triplets_Fs.emplace_back(rowOffset, colOffset + 1, std::sin(2.0 * M_PI * (r + 1.0) / period_seasonal));
+          triplets_Fs.emplace_back(rowOffset + 1, colOffset, -std::sin(2.0 * M_PI * (r + 1.0) / period_seasonal));
+          triplets_Fs.emplace_back(rowOffset + 1, colOffset + 1, std::cos(2.0 * M_PI * (r + 1.0) / period_seasonal));
+        }
+        F_seasonal.setFromTriplets(triplets_Fs.begin(), triplets_Fs.end());
+        Eigen::SparseMatrix<double> F2H = createBlockDiagonal(F_seasonal, 0.0, t, -1);
+
+        for (int i = 0; i < Tq; ++i) {
+          triplets_H.emplace_back(i, i, 1.0);
+        }
+        H.setFromTriplets(triplets_H.begin(), triplets_H.end());
+        H = H - F2H;
+
+        int j = 0;
+        for (int i = q; i < Tq; ++i) {
+          invS_triplets.emplace_back(i, i, Q1invdraw_seasonal[k](j++));
+          if (j >= q) {
+            j = 0;
+          }
+        }
+      } else {
+        for (int i = 0; i < Tq; ++i) {
+          triplets_H.emplace_back(i, i, 1.0);
+          if (i >= q) {
+            triplets_H.emplace_back(i, i - q, -phi_ar1_time_draw(k));
+          }
+        }
+        H.setFromTriplets(triplets_H.begin(), triplets_H.end());
+
+        for (int i = q; i < Tq; ++i) {
+          invS_triplets.emplace_back(i, i, Q1invdraw_time(k));
+        }
+      }
       invS_diag.setFromTriplets(invS_triplets.begin(), invS_triplets.end());
-            
+      
       // Sample from posterior
       Eigen::MatrixXd bb = posterior_beta(H.transpose() * invS_diag * H, bigG[k], s2_err_mis_draw, y_k); // T x 1
       
       // Reshape and center
-      Eigen::MatrixXd Bdrawc = Eigen::Map<Eigen::MatrixXd>(bb.data(), 1, t);
+      Eigen::MatrixXd Bdrawc = Eigen::Map<Eigen::MatrixXd>(bb.data(), q, t);
+      if (q_seasonal(k) > 0) {
+        Bseasonaldraw[k] = Bdrawc;
+        Bdrawc = G_seasonal * Bdrawc;
+      }
       Btimedraw[k] = Bdrawc.row(0).array() - Bdrawc.row(0).mean();
-      
     }
     
     
@@ -828,7 +918,12 @@ Rcpp::List dlm_cpp(
     // Compute residual y_k
     y2_vec = eta_tilde_vec - Zgamma - offset_vec - Xbdraw;
     for (int k = 0; k < ncovx; ++k) {
-      y2_vec -= bigG[k] * Btimedraw[k].row(0).transpose();
+      if (q_seasonal(k) > 0) {
+        Eigen::VectorXd bseas = Eigen::Map<Eigen::VectorXd>(Bseasonaldraw[k].data(), Bseasonaldraw[k].size());
+        y2_vec -= bigG[k] * bseas;
+      } else {
+        y2_vec -= bigG[k] * Btimedraw[k].row(0).transpose();
+      }
       y2_vec -= bigG3[k] * Bspacedraw[k].col(0);
     }
       
@@ -839,9 +934,22 @@ Rcpp::List dlm_cpp(
           if (k == k2) continue;
           y_k -= bigG2[k2] * Eigen::Map<Eigen::VectorXd>(Bspacetimedraw[k2].data(), p * t);
         }
+
+        int q2 = p;
+        int Tq2 = t * q2;
+        // Construct sparse difference matrix H2 (Tq2 x Tq2)
+        Eigen::SparseMatrix<double> H2(Tq2, Tq2);
+        std::vector<Eigen::Triplet<double>> triplets_H2;
+        for (int i = 0; i < Tq2; ++i) {
+          triplets_H2.emplace_back(i, i, 1.0);
+          if (i >= q2) {
+            triplets_H2.emplace_back(i, i - q2, -phi_ar1_space_time_draw(k));
+          }
+        }
+        H2.setFromTriplets(triplets_H2.begin(), triplets_H2.end());
         
         // Construct block-diagonal prior precision matrix invS_diag
-        Eigen::SparseMatrix<double> invS_diag(p * t, p * t);
+        Eigen::SparseMatrix<double> invS_diag(Tq2, Tq2);
         // std::vector<Eigen::Triplet<double>> triplets;
         // for (int i = 0; i < p; ++i) {
         //   triplets.emplace_back(i, i, 1.0 / V_beta_0);  // prior for beta_0
@@ -857,13 +965,14 @@ Rcpp::List dlm_cpp(
         // }
         // invS_diag.setFromTriplets(triplets.begin(), triplets.end());
         if (!point_referenced) {
-          invS_diag = createBlockDiagonal(Q1invdraw_spacetime[k], 1.0 / V_beta_0(k), t);
+          invS_diag = createBlockDiagonal(Q1invdraw_spacetime[k], 1.0 / V_beta_0(k), t, 0);
         } else {
           invS_diag = createBlockDiagonal_dense(Q1invdraw_spacetime_dense[k], 1.0 / V_beta_0(k), t);
         }
-        
+      
         // Sample from posterior
         Eigen::MatrixXd bb = posterior_beta(H2.transpose() * invS_diag * H2, bigG2[k], s2_err_mis_draw, y_k); // pt x 1
+      
         // Reshape and apply sum-to-zero constraints
         Eigen::MatrixXd Bdrawc = Eigen::Map<Eigen::MatrixXd>(bb.data(), p, t);
         Bdrawc = Bdrawc.colwise() - Bdrawc.rowwise().mean();  // center columns (space)
@@ -876,7 +985,12 @@ Rcpp::List dlm_cpp(
     // Step I.c: Sampling S-beta (spatial effects)
     y2_vec = eta_tilde_vec - Zgamma - offset_vec - Xbdraw;
     for (int k = 0; k < ncovx; ++k) {
-      y2_vec -= bigG[k] * Btimedraw[k].row(0).transpose();
+      if (q_seasonal(k) > 0) {
+        Eigen::VectorXd bseas = Eigen::Map<Eigen::VectorXd>(Bseasonaldraw[k].data(), Bseasonaldraw[k].size());
+        y2_vec -= bigG[k] * bseas;
+      } else {
+        y2_vec -= bigG[k] * Btimedraw[k].row(0).transpose();
+      }
       y2_vec -= bigG2[k] * Eigen::Map<Eigen::VectorXd>(Bspacetimedraw[k].data(), Bspacetimedraw[k].size());
     }
     
@@ -907,7 +1021,12 @@ Rcpp::List dlm_cpp(
     // Compute residual y2 = eta_tilde - T*beta_t - S*beta_s - ST*beta_st
     Eigen::VectorXd y2_reg = eta_tilde_vec - offset_vec;
     for (int k = 0; k < ncovx; ++k) {
-      y2_reg -= bigG[k] * Btimedraw[k].transpose();
+      if (q_seasonal(k) > 0) {
+        Eigen::VectorXd bseas = Eigen::Map<Eigen::VectorXd>(Bseasonaldraw[k].data(), Bseasonaldraw[k].size());
+        y2_reg -= bigG[k] * bseas;
+      } else {
+        y2_reg -= bigG[k] * Btimedraw[k].row(0).transpose();
+      }
       y2_reg -= bigG2[k] * Eigen::Map<Eigen::VectorXd>(Bspacetimedraw[k].data(), p * t);
       y2_reg -= bigG3[k] * Bspacedraw[k];
     }
@@ -930,8 +1049,7 @@ Rcpp::List dlm_cpp(
     Eigen::VectorXd gamma_beta_draw = P_reg * tmp_reg;
     gamma_beta_draw += L_reg * randn_vector(gamma_beta_draw.size());
 	
-    
-    
+      
     // Update gamma_draw and Bdraw
     if (ncovz > 0) {
       gamma_draw = gamma_beta_draw.head(ncovz);
@@ -963,13 +1081,38 @@ Rcpp::List dlm_cpp(
     // Step II: Sampling variances of state vectors
     for (int k = 0; k < ncovx; ++k) {
       // --- TIME (T-beta) ---
-      const Eigen::MatrixXd& Btime_k = Btimedraw[k];  // 1 x t
-      Eigen::VectorXd e2(t);
-      e2(0) = Btime_k(0, 0) - phi_ar1_time_draw(k) * Btime_k(0, 0);
-      e2.segment(1, t - 1) = Btime_k.row(0).segment(1, t - 1) - phi_ar1_time_draw(k) * Btime_k.row(0).segment(0, t - 1);
-      double newnu2 = a_inn_time(k) + static_cast<double>(t - 1) / 2.0;
-      double newS2 = b_inn_time(k) + 0.5 * e2.squaredNorm();
-      Q1invdraw_time(k) = R::rgamma(newnu2, 1.0 / newS2);
+      if (q_seasonal(k) > 0) {
+        int q = static_cast<int>(2 * q_seasonal(k));
+        const Eigen::MatrixXd& Btime_k = Bseasonaldraw[k];  // q x t
+        Eigen::MatrixXd e2 = Eigen::MatrixXd::Zero(q, t);
+        Eigen::SparseMatrix<double> F_seasonal(q, q);
+        std::vector<Eigen::Triplet<double>> triplets_Fs;
+        int q_s = static_cast<int>(q_seasonal(k));
+        for (int r = 0; r < q_s; ++r) {
+          int rowOffset = r * 2;
+          int colOffset = r * 2;
+          triplets_Fs.emplace_back(rowOffset, colOffset, std::cos(2.0 * M_PI * (r + 1.0) / period_seasonal));
+          triplets_Fs.emplace_back(rowOffset, colOffset + 1, std::sin(2.0 * M_PI * (r + 1.0) / period_seasonal));
+          triplets_Fs.emplace_back(rowOffset + 1, colOffset, -std::sin(2.0 * M_PI * (r + 1.0) / period_seasonal));
+          triplets_Fs.emplace_back(rowOffset + 1, colOffset + 1, std::cos(2.0 * M_PI * (r + 1.0) / period_seasonal));
+        }
+        F_seasonal.setFromTriplets(triplets_Fs.begin(), triplets_Fs.end());
+        e2.rightCols(t-1) = Btime_k.rightCols(t-1) - F_seasonal * Btime_k.leftCols(t-1);
+        for (int r = 0; r < q; ++r) {
+          double newnu2 = a_inn_time(k) + static_cast<double>(t - 1) / 2.0;
+          double newS2 = b_inn_time(k) + 0.5 * e2.row(r).squaredNorm();
+          Q1invdraw_seasonal[k](r) = std::min(R::rgamma(newnu2, 1.0 / newS2), 1e10);
+        }     
+      } else {
+        const Eigen::MatrixXd& Btime_k = Btimedraw[k];  // 1 x t
+        Eigen::VectorXd e2(t);
+        e2(0) = Btime_k(0, 0) - phi_ar1_time_draw(k) * Btime_k(0, 0);
+        e2.segment(1, t - 1) = Btime_k.row(0).segment(1, t - 1) - phi_ar1_time_draw(k) * Btime_k.row(0).segment(0, t - 1);
+        double newnu2 = a_inn_time(k) + static_cast<double>(t - 1) / 2.0;
+        double newS2 = b_inn_time(k) + 0.5 * e2.squaredNorm();
+        Q1invdraw_time(k) = R::rgamma(newnu2, 1.0 / newS2);
+      }
+      
       
       // --- SPACE-TIME (ST-beta) ---
       const Eigen::MatrixXd& Bst_k = Bspacetimedraw[k];  // p x t
@@ -1072,18 +1215,20 @@ Rcpp::List dlm_cpp(
     if (!random_walk) {
       for (int k = 0; k < ncovx; ++k) {
         // TIME
-        const Eigen::MatrixXd& Btime_k = Btimedraw[k];  // 1 x t
-        Eigen::VectorXd X2(t);
-        X2(0) = Btime_k(0, 0);
-        X2.segment(1, t-1) = Btime_k.row(0).segment(0, t - 1).transpose();
-        double Prec_prior_phi_t = 1.0;
-        double Prec_posterior_phi_t = Prec_prior_phi_t + (X2 * Q1invdraw_time(k)).dot(X2);
-        double Mean_posterior_phi_t = (X2 * Q1invdraw_time(k)).dot(Btime_k.row(0).transpose()) / Prec_posterior_phi_t;
-        Rcpp::NumericVector phi_t_draw = rtruncnorm(1, Mean_posterior_phi_t, std::sqrt(1.0/Prec_posterior_phi_t), -1.0+1e-5, 1.0-1e-5);
-        phi_ar1_time_draw(k) = phi_t_draw[0];
+        if (q_seasonal(k) == 0.0) {
+          const Eigen::MatrixXd& Btime_k = Btimedraw[k];  // 1 x t
+          Eigen::VectorXd X2(t);
+          X2(0) = Btime_k(0, 0);
+          X2.segment(1, t-1) = Btime_k.row(0).segment(0, t - 1).transpose();
+          double Prec_prior_phi_t = 1.0;
+          double Prec_posterior_phi_t = Prec_prior_phi_t + (X2 * Q1invdraw_time(k)).dot(X2);
+          double Mean_posterior_phi_t = (X2 * Q1invdraw_time(k)).dot(Btime_k.row(0).transpose()) / Prec_posterior_phi_t;
+          Rcpp::NumericVector phi_t_draw = rtruncnorm(1, Mean_posterior_phi_t, std::sqrt(1.0/Prec_posterior_phi_t), -1.0+1e-5, 1.0-1e-5);
+          phi_ar1_time_draw(k) = phi_t_draw[0];
+        }
 
+        // SPACE-TIME
         if (ST(k) == 1.0) {
-          // SPACE-TIME
           const Eigen::MatrixXd& Bst_k = Bspacetimedraw[k];  // p x t
           double Prec_prior_phi_st = 1.0;
           double Prec_posterior_phi_st = 0.0;
@@ -1164,29 +1309,63 @@ Rcpp::List dlm_cpp(
       }
 
       if (X_pred_nullable.isNotNull()) {
-        std::vector<Eigen::MatrixXd> BBtimedraw(ncovx, Eigen::MatrixXd::Zero(1, t_new));
+        std::vector<Eigen::MatrixXd> BBtimedraw(ncovx);
         for (int k = 0; k < ncovx; ++k) {
+          int q = 1;
+          if (q_seasonal(k) > 0) {
+            q = static_cast<int>(2 * q_seasonal(k));
+          }
+          BBtimedraw[k].setZero(q, t_new);
+          if (q_seasonal(k) > 0) {
+            BBtimedraw[k].leftCols(t) = Bseasonaldraw[k];
+          } else {
+            BBtimedraw[k].leftCols(t) = Btimedraw[k];
+          }
           q0_index_space = find_index(rho2_space_draw(k), allowed_range);
           if (ST(k) == 1.0) {
             q0_index_spacetime = find_index(rho2_space_time_draw(k), allowed_range);
           }
+
           // TIME PREDICTIONS
-          BBtimedraw[k].leftCols(t) = Btimedraw[k];
           Bspacetime_pred_obs_sites[k].leftCols(t) = Bspacetimedraw[k]; // Copy existing data
           if (h_ahead > 0) {
-            double Btime_pred_mean_tph = phi_ar1_time_draw(k) * Btimedraw[k](0, t - 1);
-            for (int h = 0; h < h_ahead; ++h) {
-              Btime_pred_draw[k](0, h) = Btime_pred_mean_tph + std::sqrt(1.0 / Q1invdraw_time(k)) * R::rnorm(0.0, 1.0);
-              // Update mean for the next prediction step.
-              Btime_pred_mean_tph = phi_ar1_time_draw(k) * Btime_pred_draw[k](0, h);
-              if (ST(k) == 1.0) {
+            if (q_seasonal(k) > 0) {
+              Eigen::SparseMatrix<double> F_seasonal(q, q);
+              std::vector<Eigen::Triplet<double>> triplets_Fs;
+              int q_s = static_cast<int>(q_seasonal(k));
+              for (int r = 0; r < q_s; ++r) {
+                int rowOffset = r * 2;
+                int colOffset = r * 2;
+                triplets_Fs.emplace_back(rowOffset, colOffset, std::cos(2.0 * M_PI * (r + 1.0) / period_seasonal));
+                triplets_Fs.emplace_back(rowOffset, colOffset + 1, std::sin(2.0 * M_PI * (r + 1.0) / period_seasonal));
+                triplets_Fs.emplace_back(rowOffset + 1, colOffset, -std::sin(2.0 * M_PI * (r + 1.0) / period_seasonal));
+                triplets_Fs.emplace_back(rowOffset + 1, colOffset + 1, std::cos(2.0 * M_PI * (r + 1.0) / period_seasonal));
+              }
+              F_seasonal.setFromTriplets(triplets_Fs.begin(), triplets_Fs.end());
+              Eigen::VectorXd Btime_pred_mean_tph = F_seasonal * Bseasonaldraw[k].col(t - 1);
+              for (int h = 0; h < h_ahead; ++h) {
+                Btime_pred_draw[k].col(h) = Btime_pred_mean_tph + (Q1invdraw_seasonal[k].array().inverse().sqrt() * randn_vector(q).array()).matrix();
+                // Update mean for the next prediction step.
+                Btime_pred_mean_tph = F_seasonal * Btime_pred_draw[k].col(h);
+              }
+            } else {
+              double Btime_pred_mean_tph = phi_ar1_time_draw(k) * Btimedraw[k](0, t - 1);
+              for (int h = 0; h < h_ahead; ++h) {
+                Btime_pred_draw[k](0, h) = Btime_pred_mean_tph + std::sqrt(1.0 / Q1invdraw_time(k)) * R::rnorm(0.0, 1.0);
+                // Update mean for the next prediction step.
+                Btime_pred_mean_tph = phi_ar1_time_draw(k) * Btime_pred_draw[k](0, h);                
+              }
+              BBtimedraw[k].rightCols(h_ahead) = Btime_pred_draw[k];
+            }
+
+            if (ST(k) == 1.0) {
+              for (int h = 0; h < h_ahead; ++h) {
                 Bspacetime_pred_obs_sites[k].col(t + h) =
                   phi_ar1_space_time_draw(k) * Bspacetime_pred_obs_sites[k].col(t + h - 1) +
                   std::sqrt(rho1_space_time_draw(k)) * chol_Corr[q0_index_spacetime] * randn_vector(p);
               }
-              
             }
-            BBtimedraw[k].rightCols(h_ahead) = Btime_pred_draw[k];
+            
           }
 
           // ----- PRECOMPUTAZIONI condivise per il covariato k -----
@@ -1245,9 +1424,35 @@ Rcpp::List dlm_cpp(
 
         Eigen::MatrixXd meanY1_pred = Eigen::MatrixXd::Zero(p_new, t_new);
         for (int k = 0; k < ncovx; ++k) {
+          int q = 1;
+          Eigen::MatrixXd G_seasonal = Eigen::MatrixXd::Constant(1, 1, 1.0);
+          Eigen::SparseMatrix<double> F_seasonal;
+          std::vector<Eigen::Triplet<double>> triplets_Fs;
+          if (q_seasonal(k) > 0) {
+            q = static_cast<int>(2 * q_seasonal(k));
+            int q_s = static_cast<int>(q_seasonal(k));
+            F_seasonal.resize(q, q);
+            G_seasonal = Eigen::MatrixXd::Zero(1, q);
+            for (int r = 0; r < q_s; ++r) {
+              int rowOffset = r * 2;
+              int colOffset = r * 2;
+              triplets_Fs.emplace_back(rowOffset, colOffset, std::cos(2.0 * M_PI * (r + 1.0) / period_seasonal));
+              triplets_Fs.emplace_back(rowOffset, colOffset + 1, std::sin(2.0 * M_PI * (r + 1.0) / period_seasonal));
+              triplets_Fs.emplace_back(rowOffset + 1, colOffset, -std::sin(2.0 * M_PI * (r + 1.0) / period_seasonal));
+              triplets_Fs.emplace_back(rowOffset + 1, colOffset + 1, std::cos(2.0 * M_PI * (r + 1.0) / period_seasonal));
+
+              G_seasonal(0, r*2) = 1.0;
+            }
+            F_seasonal.setFromTriplets(triplets_Fs.begin(), triplets_Fs.end());
+          }
+          
           Eigen::MatrixXd B_pred_full = Eigen::MatrixXd::Constant(p_new, t_new, Bdraw_vec(k));
           if (h_ahead > 0) {
-            B_pred_full.rowwise() += BBtimedraw[k].row(0); //.colwise().replicate(p_new);
+            if (q_seasonal(k) > 0) {
+              B_pred_full.rowwise() += (G_seasonal * (F_seasonal * BBtimedraw[k])).row(0);
+            } else {
+              B_pred_full.rowwise() += BBtimedraw[k].row(0); //.colwise().replicate(p_new);
+            }
           }
           B_pred_full.colwise() += Bspace_pred_draw[k].col(0); //.rowwise().replicate(t_new);
           if (ST(k) == 1.0) {
@@ -1255,6 +1460,15 @@ Rcpp::List dlm_cpp(
           }
           Eigen::ArrayXXd appoX_Bpred_ = X_pred[k].array() * B_pred_full.array();
           meanY1_pred += appoX_Bpred_.matrix();
+
+          Btime_pred_postmean[k] += G_seasonal * (F_seasonal * Btime_pred_draw[k]);
+          Btime_pred2_postmean[k] += (G_seasonal * (F_seasonal * Btime_pred_draw[k])).array().square().matrix();
+          Bspacetime_pred_postmean[k] += Bspacetime_pred_draw[k];
+          Bspacetime_pred2_postmean[k] += Bspacetime_pred_draw[k].array().square().matrix();
+          Bspace_pred_postmean[k] += Bspace_pred_draw[k];
+          Bspace_pred2_postmean[k] += Bspace_pred_draw[k].array().square().matrix();
+          
+          B_pred2_c_t_s_st[k] += B_pred_full.array().square().matrix();
         }
 
         Eigen::MatrixXd meanZ_pred = Eigen::MatrixXd::Zero(p_new, t_new);
@@ -1287,20 +1501,20 @@ Rcpp::List dlm_cpp(
         // Update averages on predictions
         Ypred_mean += Ypred;
         Ypred2_mean += Ypred.array().square().matrix();
-        for (int k = 0; k < ncovx; ++k) {
-          Btime_pred_postmean[k] += Btime_pred_draw[k];
-          Btime_pred2_postmean[k] += Btime_pred_draw[k].array().square().matrix();
-          Bspacetime_pred_postmean[k] += Bspacetime_pred_draw[k];
-          Bspacetime_pred2_postmean[k] += Bspacetime_pred_draw[k].array().square().matrix();
-          Bspace_pred_postmean[k] += Bspace_pred_draw[k];
-          Bspace_pred2_postmean[k] += Bspace_pred_draw[k].array().square().matrix();
+        // for (int k = 0; k < ncovx; ++k) {
+          // Btime_pred_postmean[k] += Btime_pred_draw[k];
+          // Btime_pred2_postmean[k] += Btime_pred_draw[k].array().square().matrix();
+          // Bspacetime_pred_postmean[k] += Bspacetime_pred_draw[k];
+          // Bspacetime_pred2_postmean[k] += Bspacetime_pred_draw[k].array().square().matrix();
+          // Bspace_pred_postmean[k] += Bspace_pred_draw[k];
+          // Bspace_pred2_postmean[k] += Bspace_pred_draw[k].array().square().matrix();
           
-          Eigen::MatrixXd Bpred_c_t_s_st = Eigen::MatrixXd::Ones(p_new, t_new) * Bdraw_vec(k)
-            + BBtimedraw[k].colwise().replicate(p_new)
-            + Bspace_pred_draw[k].rowwise().replicate(t_new)
-            + Bspacetime_pred_draw[k];
-          B_pred2_c_t_s_st[k] += Bpred_c_t_s_st.array().square().matrix();
-        }
+          // Eigen::MatrixXd Bpred_c_t_s_st = Eigen::MatrixXd::Ones(p_new, t_new) * Bdraw_vec(k)
+          //   + BBtimedraw[k].colwise().replicate(p_new)
+          //   + Bspace_pred_draw[k].rowwise().replicate(t_new)
+          //   + Bspacetime_pred_draw[k];
+          // B_pred2_c_t_s_st[k] += Bpred_c_t_s_st.array().square().matrix();
+        // }
         if (keepY) {
           YPRED_out[collect_count] = Ypred;
         }
@@ -1418,6 +1632,9 @@ Rcpp::List dlm_cpp(
         
         Btime_postmean[k] += Btimedraw[k];
         Btime2_postmean[k] += Btimedraw[k].array().square().matrix();
+
+        Bseasonal_postmean[k] += Bseasonaldraw[k];
+        Bseasonal2_postmean[k] += Bseasonaldraw[k].array().square().matrix();
         
         Bspace_postmean[k] += Bspacedraw[k];
         Bspace2_postmean[k] += Bspacedraw[k].array().square().matrix();

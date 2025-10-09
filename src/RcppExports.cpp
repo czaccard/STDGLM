@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // dlm_cpp
-Rcpp::List dlm_cpp(Eigen::MatrixXd Y, const std::string& family, const std::vector<Eigen::MatrixXd>& X, const Rcpp::Nullable<Rcpp::List> Z_nullable, const Eigen::MatrixXd& offset, const bool& point_referenced, const bool& random_walk, const Eigen::VectorXd& ST, const std::vector<std::vector<int>>& blocks_indices, const Eigen::MatrixXd& W_dense, const std::vector<Eigen::MatrixXd>& W_pred_dense, const std::vector<Eigen::MatrixXd>& W_cross_dense, const Rcpp::Nullable<Rcpp::List> X_pred_nullable, const Rcpp::Nullable<Rcpp::List> Z_pred_nullable, const Eigen::MatrixXd& offset_pred, const int& nrep, const int& nburn, const int& thin, const int& print_interval, const Eigen::VectorXd& V_beta_0, const double& V_gamma, const Eigen::VectorXd& a_inn_time, const Eigen::VectorXd& b_inn_time, const Eigen::VectorXd& a_rho1s, const Eigen::VectorXd& b_rho1s, const Eigen::VectorXd& a_rho1st, const Eigen::VectorXd& b_rho1st, const double& a_s2, const double& b_s2, const double& ctuning, const bool& keepY, const bool& keepLogLik, Rcpp::Nullable<Rcpp::List> out_prev_nullable);
-RcppExport SEXP _STDGLM_dlm_cpp(SEXP YSEXP, SEXP familySEXP, SEXP XSEXP, SEXP Z_nullableSEXP, SEXP offsetSEXP, SEXP point_referencedSEXP, SEXP random_walkSEXP, SEXP STSEXP, SEXP blocks_indicesSEXP, SEXP W_denseSEXP, SEXP W_pred_denseSEXP, SEXP W_cross_denseSEXP, SEXP X_pred_nullableSEXP, SEXP Z_pred_nullableSEXP, SEXP offset_predSEXP, SEXP nrepSEXP, SEXP nburnSEXP, SEXP thinSEXP, SEXP print_intervalSEXP, SEXP V_beta_0SEXP, SEXP V_gammaSEXP, SEXP a_inn_timeSEXP, SEXP b_inn_timeSEXP, SEXP a_rho1sSEXP, SEXP b_rho1sSEXP, SEXP a_rho1stSEXP, SEXP b_rho1stSEXP, SEXP a_s2SEXP, SEXP b_s2SEXP, SEXP ctuningSEXP, SEXP keepYSEXP, SEXP keepLogLikSEXP, SEXP out_prev_nullableSEXP) {
+Rcpp::List dlm_cpp(Eigen::MatrixXd Y, const std::string& family, const std::vector<Eigen::MatrixXd>& X, const Rcpp::Nullable<Rcpp::List> Z_nullable, const Eigen::MatrixXd& offset, const bool& point_referenced, const bool& random_walk, const Eigen::VectorXd& ST, const Eigen::VectorXd& q_seasonal, const double& period_seasonal, const std::vector<std::vector<int>>& blocks_indices, const Eigen::MatrixXd& W_dense, const std::vector<Eigen::MatrixXd>& W_pred_dense, const std::vector<Eigen::MatrixXd>& W_cross_dense, const Rcpp::Nullable<Rcpp::List> X_pred_nullable, const Rcpp::Nullable<Rcpp::List> Z_pred_nullable, const Eigen::MatrixXd& offset_pred, const int& nrep, const int& nburn, const int& thin, const int& print_interval, const Eigen::VectorXd& V_beta_0, const double& V_gamma, const Eigen::VectorXd& a_inn_time, const Eigen::VectorXd& b_inn_time, const Eigen::VectorXd& a_rho1s, const Eigen::VectorXd& b_rho1s, const Eigen::VectorXd& a_rho1st, const Eigen::VectorXd& b_rho1st, const double& a_s2, const double& b_s2, const double& ctuning, const bool& keepY, const bool& keepLogLik, Rcpp::Nullable<Rcpp::List> out_prev_nullable);
+RcppExport SEXP _STDGLM_dlm_cpp(SEXP YSEXP, SEXP familySEXP, SEXP XSEXP, SEXP Z_nullableSEXP, SEXP offsetSEXP, SEXP point_referencedSEXP, SEXP random_walkSEXP, SEXP STSEXP, SEXP q_seasonalSEXP, SEXP period_seasonalSEXP, SEXP blocks_indicesSEXP, SEXP W_denseSEXP, SEXP W_pred_denseSEXP, SEXP W_cross_denseSEXP, SEXP X_pred_nullableSEXP, SEXP Z_pred_nullableSEXP, SEXP offset_predSEXP, SEXP nrepSEXP, SEXP nburnSEXP, SEXP thinSEXP, SEXP print_intervalSEXP, SEXP V_beta_0SEXP, SEXP V_gammaSEXP, SEXP a_inn_timeSEXP, SEXP b_inn_timeSEXP, SEXP a_rho1sSEXP, SEXP b_rho1sSEXP, SEXP a_rho1stSEXP, SEXP b_rho1stSEXP, SEXP a_s2SEXP, SEXP b_s2SEXP, SEXP ctuningSEXP, SEXP keepYSEXP, SEXP keepLogLikSEXP, SEXP out_prev_nullableSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -25,6 +25,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool& >::type point_referenced(point_referencedSEXP);
     Rcpp::traits::input_parameter< const bool& >::type random_walk(random_walkSEXP);
     Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type ST(STSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type q_seasonal(q_seasonalSEXP);
+    Rcpp::traits::input_parameter< const double& >::type period_seasonal(period_seasonalSEXP);
     Rcpp::traits::input_parameter< const std::vector<std::vector<int>>& >::type blocks_indices(blocks_indicesSEXP);
     Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type W_dense(W_denseSEXP);
     Rcpp::traits::input_parameter< const std::vector<Eigen::MatrixXd>& >::type W_pred_dense(W_pred_denseSEXP);
@@ -50,13 +52,13 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const bool& >::type keepY(keepYSEXP);
     Rcpp::traits::input_parameter< const bool& >::type keepLogLik(keepLogLikSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type out_prev_nullable(out_prev_nullableSEXP);
-    rcpp_result_gen = Rcpp::wrap(dlm_cpp(Y, family, X, Z_nullable, offset, point_referenced, random_walk, ST, blocks_indices, W_dense, W_pred_dense, W_cross_dense, X_pred_nullable, Z_pred_nullable, offset_pred, nrep, nburn, thin, print_interval, V_beta_0, V_gamma, a_inn_time, b_inn_time, a_rho1s, b_rho1s, a_rho1st, b_rho1st, a_s2, b_s2, ctuning, keepY, keepLogLik, out_prev_nullable));
+    rcpp_result_gen = Rcpp::wrap(dlm_cpp(Y, family, X, Z_nullable, offset, point_referenced, random_walk, ST, q_seasonal, period_seasonal, blocks_indices, W_dense, W_pred_dense, W_cross_dense, X_pred_nullable, Z_pred_nullable, offset_pred, nrep, nburn, thin, print_interval, V_beta_0, V_gamma, a_inn_time, b_inn_time, a_rho1s, b_rho1s, a_rho1st, b_rho1st, a_s2, b_s2, ctuning, keepY, keepLogLik, out_prev_nullable));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_STDGLM_dlm_cpp", (DL_FUNC) &_STDGLM_dlm_cpp, 33},
+    {"_STDGLM_dlm_cpp", (DL_FUNC) &_STDGLM_dlm_cpp, 35},
     {NULL, NULL, 0}
 };
 

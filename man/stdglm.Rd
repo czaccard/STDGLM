@@ -13,6 +13,8 @@ stdglm(
   point.referenced = TRUE,
   random.walk = FALSE,
   interaction = TRUE,
+  n.harmonics = 0,
+  period = 0,
   blocks_indices = NULL,
   W,
   W_pred = NULL,
@@ -47,6 +49,10 @@ stdglm(
 \item{random.walk}{A logical indicating whether the temporal dynamic should be modeled as a random walk (TRUE) or a first-order autoregressive process (FALSE). Default is FALSE.}
 
 \item{interaction}{A logical vector indicating whether to include the spatio-temporal interaction effect. Default is TRUE, meaning all covariates' effects are allowed to interact across space and time. If FALSE, no interactions are included. It is also possible to pass a logical vector of length \emph{ncovx} to select specific interactions.}
+
+\item{n.harmonics}{A scalar or a numeric vector of length \emph{ncovx} with non-negative values for modeling the cyclic behavior of the temporal effects. It stands for the number of harmonics of the Fourier representation. If scalar, 0 indicates that the seasonal behavior should not be modeled. If positive integer, the seasonal behavior is modeled for all temporal effects, and the input \code{random.walk} is ignored. Using the same logic, a numeric vector can be provided to select specific effects. Defaults to 0.}
+
+\item{period}{A scalar indicating the period of the data, required for modeling the cyclic behavior. It is ignored whenever \code{n.harmonics=0}. Defaults to 0.}
 
 \item{blocks_indices}{A list of integer vectors indicating the indices of the blocks for spatial predictions. Defaults to \code{NULL}, if no predictions are needed. See details.}
 
@@ -134,8 +140,8 @@ This function executes the Markov Chain Monte Carlo (MCMC) algorithm for STDGLMs
 The fitted model has the following form:
 \deqn{y_{it} \sim F}
 \deqn{\eta_{it} = g(E( y_{it} )) = \boldsymbol{x}_{it}' \boldsymbol{\beta}_{it} + \boldsymbol{z}_{it}' \boldsymbol{\gamma} + \epsilon_{it}, \quad \epsilon_{it} \sim N(0, \sigma_\epsilon^2)}
-\deqn{\boldsymbol{\beta}_{j, t} = \boldsymbol{F}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J}
-where \eqn{\boldsymbol{F}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p} and \eqn{J=ncovx}.
+\deqn{\boldsymbol{\beta}_{j, t} = \boldsymbol{G}_{j,t} \boldsymbol{\beta}_{j, t-1} + \boldsymbol{\eta}_{j,t}, \quad \boldsymbol{\eta}_{j,t} \sim N_p(0, \boldsymbol{\Sigma}_{\eta, j}), \quad j=1, \dots, J}
+where either \eqn{\boldsymbol{G}_{j,t} = \phi_j^{(\mathsf{T})} \boldsymbol{I}_p} or \eqn{\boldsymbol{G}_{j,t}} is block diagonal with harmonic matrices, and \eqn{J=ncovx}.
 
 The function allows for the decomposition of the state vector into components that can be interpreted as contributions from different sources of variability, that is:
 \deqn{\beta_{it} = \overline{\beta} + \beta_{i}^{(\mathsf{S})} + \beta_{t}^{(\mathsf{T})} + \beta_{it}^{(\mathsf{ST})}}
@@ -181,10 +187,10 @@ y = matrix(ApuliaAQ$CL_t2m, p, t)
 X = array(1, dim = c(p, t, 2))
 X[,,2] = matrix(ApuliaAQ$Altitude, p, t)
 
-mod <- stdglm(y=y, X=X, W=W)
+mod <- stdglm(y=y, X=X, W=W, interaction = FALSE)
 
 # Model with spacetime-varying intercept, but fixed altitude effect
-mod2 <- stdglm(y=y, X=X[,,1,drop=FALSE], Z=X[,,2,drop=FALSE], W=W)
+mod2 <- stdglm(y=y, X=X[,,1,drop=FALSE], Z=X[,,2,drop=FALSE], W=W, interaction = FALSE)
 }
 
 }

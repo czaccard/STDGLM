@@ -52,6 +52,5 @@ mod <- stdglm(y=y, X=X, W=W)
 
 ## TO-DO
 
-- [ ] Add seasonal temporal effects
 - [ ] Allow for different prior distributions for variances and ranges
 - [ ] Add bool to decide whether to save VC draws
