@@ -381,8 +381,12 @@ Rcpp::List dlm_cpp(
     if (family == "poisson") {
       Y(i, j) = R::rpois(std::exp(eta_tilde(i, j)));
     } else if (family == "bernoulli") {
-      double pr_y1 = 1.0 - R::pnorm(- eta_tilde(i, j), 0.0, 1.0, true, false);
-      Y(i, j) = R::rbinom(1, pr_y1);
+      double ystar = R::rnorm(eta_tilde(i, j), 1.0);
+      if (ystar > 0.0) {
+        Y(i, j) = 1.0;
+      } else {
+        Y(i, j) = 0.0;
+      }
     }
   }
 
@@ -1273,8 +1277,14 @@ Rcpp::List dlm_cpp(
       // Eigen::MatrixXd pr_y1(p, t); // Pr (Y = 1 | parameters)
       for (int i = 0; i < p; ++i) {
         for (int j = 0; j < t; ++j) {
-          double pr_y1 = 1.0 - R::pnorm(- thetay_draw(i, j), 0.0, 1.0, true, false);
-          Yfitted(i, j) = R::rbinom(1, pr_y1);
+          // double pr_y1 = 1.0 - R::pnorm(- thetay_draw(i, j), 0.0, 1.0, true, false);
+          // Yfitted(i, j) = R::rbinom(1, pr_y1);
+          double ystar = R::rnorm(thetay_draw(i, j), 1.0);
+          if (ystar < 0.0) {
+            Yfitted(i, j) = 0.0;
+          } else {
+            Yfitted(i, j) = 1.0;
+          }
         }
       }
       // Impute missing values in Y
@@ -1492,8 +1502,14 @@ Rcpp::List dlm_cpp(
           // Eigen::MatrixXd pr_ypred1(p_new, t_new); // Pr (Ypred = 1 | Y, parameters)
           for (int i = 0; i < p_new; ++i) {
             for (int j = 0; j < t_new; ++j) {
-              double pr_ypred1 = 1.0 - R::pnorm(- thetay_pred(i, j), 0.0, 1.0, true, false);
-              Ypred(i, j) = R::rbinom(1, pr_ypred1);
+              // double pr_ypred1 = 1.0 - R::pnorm(- thetay_pred(i, j), 0.0, 1.0, true, false);
+              // Ypred(i, j) = R::rbinom(1, pr_ypred1);
+              double ystar = R::rnorm(thetay_pred(i, j), 1.0);
+              if (ystar > 0.0) {
+                Ypred(i, j) = 1;
+              } else {
+                Ypred(i, j) = 0;
+              }
             }
           }
         }
@@ -1544,9 +1560,20 @@ Rcpp::List dlm_cpp(
         // Eigen::MatrixXd pr_y1(p, t); // Pr (Y = 1 | parameters)
         for (int i = 0; i < p; ++i) {
           for (int j = 0; j < t; ++j) {
-            double pr_y1 = 1.0 - R::pnorm(- thetay_draw(i, j), 0.0, 1.0, true, false);
-            store_llike[collect_count](i, j) = R::dbinom(Y(i, j), 1, pr_y1, true);
-            Yfitted2(i, j) = R::rbinom(1, pr_y1);
+            if (Y(i, j) == 0.0) {
+              store_llike[collect_count](i, j) = std::log(R::pnorm(- thetay_draw(i, j), 0.0, 1.0, true, false));
+            } else {
+              store_llike[collect_count](i, j) = std::log(1.0 - R::pnorm(- thetay_draw(i, j), 0.0, 1.0, true, false));
+            }
+            double ystar = R::rnorm(thetay_draw(i, j), 1.0);
+            if (ystar < 0.0) {
+              Yfitted2(i, j) = 0.0;
+            } else {
+              Yfitted2(i, j) = 1.0;
+            }
+            // double pr_y1 = 1.0 - R::pnorm(- thetay_draw(i, j), 0.0, 1.0, true, false);
+            // store_llike[collect_count](i, j) = R::dbinom(Y(i, j), 1, pr_y1, true);
+            // Yfitted2(i, j) = R::rbinom(1, pr_y1);
           }
         }
       }
@@ -1774,8 +1801,13 @@ Rcpp::List dlm_cpp(
   } else if (family == "bernoulli") {
     // Eigen::MatrixXd pr_y1(p, t); // Pr (Y = 1 | parameters)
     for (const auto& [i, j] : valid_indices) {
-      double pr_y1 = 1.0 - R::pnorm(- theta_hat(i, j), 0.0, 1.0, true, false);
-      log_lik_hat += R::dbinom(Y(i, j), 1, pr_y1, true);
+      if (Y(i, j) == 0.0) {
+        log_lik_hat += std::log(R::pnorm(- theta_hat(i, j), 0.0, 1.0, true, false));
+      } else {
+        log_lik_hat += std::log(1.0 - R::pnorm(- theta_hat(i, j), 0.0, 1.0, true, false));
+      }
+      // double pr_y1 = 1.0 - R::pnorm(- theta_hat(i, j), 0.0, 1.0, true, false);
+      // log_lik_hat += R::dbinom(Y(i, j), 1, pr_y1, true);
     }
   }
 

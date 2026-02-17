@@ -1,3 +1,7 @@
+# STDGLM 0.2.1
+
+* Bug fixes.
+
 # STDGLM 0.2.0
 
 * Added option for cyclic behavior of temporal effects.
