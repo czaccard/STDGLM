@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">STDGLM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -214,7 +214,7 @@ concentrations.</p>
 <span>  <span class="fu">geom_sf</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>col <span class="op">=</span> <span class="va">AQ_mean_NO2</span>, shape <span class="op">=</span> <span class="va">AirQualityStationType</span><span class="op">)</span>, <span class="va">yearly_avg</span>, size <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">scale_color_viridis_c</span><span class="op">(</span>na.value <span class="op">=</span> <span class="st">"red"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">labs</span><span class="op">(</span>title <span class="op">=</span> <span class="st">"2022 average NO2 concentrations"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="a03_apulia_aq_files/figure-html/unnamed-chunk-7-1.png" class="r-plt" width="700"></p>
+<p><img src="a03_apulia_aq_files/figure-html/unnamed-chunk-7-1.png" class="r-plt" alt="" width="700"></p>
 <p>The red points pinpoint those stations without any valid measurement.
 However, the percentage of missing data is highly variable across
 stations.</p>
@@ -234,7 +234,7 @@ stations.</p>
 <span>  <span class="fu">geom_sf</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>col <span class="op">=</span> <span class="va">Percentage</span><span class="op">)</span>, <span class="va">perc_na</span>, size <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">scale_color_viridis_c</span><span class="op">(</span>limits <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">1</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">labs</span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Percentage of missing data"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="a03_apulia_aq_files/figure-html/unnamed-chunk-8-1.png" class="r-plt" width="700"></p>
+<p><img src="a03_apulia_aq_files/figure-html/unnamed-chunk-8-1.png" class="r-plt" alt="" width="700"></p>
 <p>Let’s now visualize the data temporally, by taking the average across
 space.</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
@@ -247,7 +247,7 @@ space.</p>
 <span>  <span class="fu">theme</span><span class="op">(</span>legend.position <span class="op">=</span> <span class="st">'none'</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Warning: Removed 1 row containing missing values or values outside the scale range</span></span>
 <span><span class="co">#&gt; (`geom_line()`).</span></span></code></pre></div>
-<p><img src="a03_apulia_aq_files/figure-html/unnamed-chunk-9-1.png" class="r-plt" width="700"></p>
+<p><img src="a03_apulia_aq_files/figure-html/unnamed-chunk-9-1.png" class="r-plt" alt="" width="700"></p>
 <p>In the figure above, there are small gaps indicating that there are
 no data for some days.</p>
 <p>Missing observations in the response are not an issue when fitting

@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">STDGLM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -160,13 +160,13 @@ is held constant.</p>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/matplot.html" class="external-link">matplot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">beta0</span><span class="op">)</span>, type <span class="op">=</span> <span class="st">'l'</span>, main <span class="op">=</span> <span class="st">'Beta 0'</span>, xlab <span class="op">=</span> <span class="st">'Time'</span><span class="op">)</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-6-1.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-6-1.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/matplot.html" class="external-link">matplot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">beta1</span><span class="op">)</span>, type <span class="op">=</span> <span class="st">'l'</span>, main <span class="op">=</span> <span class="st">'Beta 1'</span>, xlab <span class="op">=</span> <span class="st">'Time'</span><span class="op">)</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-6-2.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-6-2.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/matplot.html" class="external-link">matplot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">beta2</span><span class="op">)</span>, type <span class="op">=</span> <span class="st">'l'</span>, main <span class="op">=</span> <span class="st">'Beta 2'</span>, xlab <span class="op">=</span> <span class="st">'Time'</span><span class="op">)</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-6-3.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-6-3.png" class="r-plt" alt="" width="700"></p>
 <p>Next, we simulate the response variable <code>Y</code> using the
 observation equation. The observation error is assumed to be normally
 distributed with mean zero and variance <span class="math inline">\sigma_\epsilon^2 = 2</span>.</p>
@@ -177,7 +177,7 @@ distributed with mean zero and variance <span class="math inline">\sigma_\epsilo
 <span><span class="va">Y</span> <span class="op">&lt;-</span> <span class="va">beta0</span> <span class="op">+</span> <span class="va">beta1</span><span class="op">*</span><span class="va">X</span><span class="op">[</span>,,<span class="fl">2</span><span class="op">]</span> <span class="op">+</span> <span class="va">beta2</span><span class="op">*</span><span class="va">X</span><span class="op">[</span>,,<span class="fl">3</span><span class="op">]</span> <span class="op">+</span> <span class="va">gamma</span><span class="op">*</span><span class="va">z</span><span class="op">[</span>,,<span class="fl">1</span><span class="op">]</span> <span class="op">+</span> <span class="va">eps</span></span></code></pre></div>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/matplot.html" class="external-link">matplot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">Y</span><span class="op">)</span>, type <span class="op">=</span> <span class="st">'l'</span>, main <span class="op">=</span> <span class="st">'Y'</span>, xlab <span class="op">=</span> <span class="st">'Time'</span><span class="op">)</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-8-1.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-8-1.png" class="r-plt" alt="" width="700"></p>
 </div>
 <div class="section level2">
 <h2 id="model-fitting">Model Fitting<a class="anchor" aria-label="anchor" href="#model-fitting"></a>
@@ -267,7 +267,7 @@ specific location.</p>
 <span><span class="co">#&gt;  Max.   : 19.634</span></span></code></pre></div>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">mod</span>, Y<span class="op">=</span><span class="va">Y</span>, id<span class="op">=</span><span class="fl">1</span><span class="op">)</span> <span class="co"># pick a number between 1 and p</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-13-1.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-13-1.png" class="r-plt" alt="" width="700"></p>
 <p>The <code>plot</code> method returns an object from the
 <code>ggplot2</code> package, so it is straightforward to customize,
 save, and arrange multiple plots.</p>
@@ -278,7 +278,7 @@ save, and arrange multiple plots.</p>
 <span><span class="co"># ggsave("plot2.png", plot = g2)</span></span>
 <span></span>
 <span><span class="fu">ggarrange</span><span class="op">(</span><span class="va">g1</span>, <span class="va">g2</span>, labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"#ID 1"</span>, <span class="st">"#ID 2"</span><span class="op">)</span>, label.x <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-14-1.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-14-1.png" class="r-plt" alt="" width="700"></p>
 <p>Posterior summaries for all the coefficients can be extracted using
 the <code>coef</code> method. Here we show those of constant
 coefficients.</p>
@@ -302,13 +302,13 @@ each location.</p>
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">mod</span>, <span class="st">'tvc'</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [[1]]</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-1.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-1.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[2]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-2.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-2.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[3]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-3.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-3.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">coords_sf</span> <span class="op">=</span> <span class="fu">st_as_sf</span><span class="op">(</span><span class="va">coords</span>, coords <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"x"</span>, <span class="st">"y"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">unit_square_coords</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span></span>
@@ -327,23 +327,23 @@ each location.</p>
 <span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">mod</span>, <span class="st">'svc'</span>, <span class="va">coords_sf</span>, <span class="va">region</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [[1]]</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-4.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-4.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[2]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-5.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-5.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[3]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-6.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-6.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">mod</span>, <span class="st">'stvc'</span>, ids<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">9</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [[1]]</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-7.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-7.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[2]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-8.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-8.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[3]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-9.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-16-9.png" class="r-plt" alt="" width="700"></p>
 <p>The <code>coef</code> method can be used also for the varying
 coefficients. For example, we can compare the posterior mean of the
 spacetime-varying effect of <code>beta0</code> with its true value.</p>
@@ -362,7 +362,7 @@ spacetime-varying effect of <code>beta0</code> with its true value.</p>
 <span>  <span class="fu">geom_line</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">facet_wrap</span><span class="op">(</span><span class="op">~</span> <span class="va">Space</span>, nrow <span class="op">=</span> <span class="fl">3</span><span class="op">)</span> <span class="op">+</span></span>
 <span>  <span class="fu">labs</span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Posterior Mean vs Truth for beta0"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-17-1.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-17-1.png" class="r-plt" alt="" width="700"></p>
 </div>
 <div class="section level3">
 <h3 id="trace-plots">Trace plots<a class="anchor" aria-label="anchor" href="#trace-plots"></a>
@@ -373,29 +373,29 @@ an <code>mcmc</code> object, then use the <code>plot</code> function
 from the <code>coda</code> package.</p>
 <div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">mcmc</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">out</span><span class="op">$</span><span class="va">sigma2</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="co"># measurement error variance</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-1.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-1.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">mcmc</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">out</span><span class="op">$</span><span class="va">sigma2_Btime</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="co"># evolution variances of temporal effects for j=1,...,J</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-2.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-2.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">mcmc</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">out</span><span class="op">$</span><span class="va">rho1_space</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="co"># partial sill of spatial effects for j=1,...,J</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-3.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-3.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">mcmc</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">out</span><span class="op">$</span><span class="va">rho2_space</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="co"># range of spatial effects for j=1,...,J</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-4.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-4.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">mcmc</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">out</span><span class="op">$</span><span class="va">rho1_spacetime</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="co"># partial sill of spatio-temporal effects for j=1,...,J</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-5.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-5.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">mcmc</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">out</span><span class="op">$</span><span class="va">rho2_spacetime</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="co"># range of spatio-temporal effects for j=1,...,J</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-6.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-6.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb33"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">random.walk</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">mcmc</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">out</span><span class="op">$</span><span class="va">phi_AR1_time</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="co"># AR(1) coefficient for temporal evolution for j=1,...,J</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">mcmc</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">out</span><span class="op">$</span><span class="va">phi_AR1_spacetime</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="co"># AR(1) coefficient for spatio-temporal evolution for j=1,...,J</span></span>
 <span><span class="op">}</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="fu">mcmc</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/t.html" class="external-link">t</a></span><span class="op">(</span><span class="va">mod</span><span class="op">$</span><span class="va">out</span><span class="op">$</span><span class="va">gamma</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="co">#  coefficient of the z covariate</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-7.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-18-7.png" class="r-plt" alt="" width="700"></p>
 </div>
 <div class="section level3">
 <h3 id="restoring-previous-state">Restoring previous state<a class="anchor" aria-label="anchor" href="#restoring-previous-state"></a>
@@ -515,34 +515,34 @@ distinguished from the predicted ones.</p>
 <div class="sourceCode" id="cb39"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">mod</span>, <span class="st">'tvc'</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [[1]]</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-1.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-1.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[2]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-2.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-2.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[3]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-3.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-3.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb42"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">coords_pred_sf</span> <span class="op">=</span> <span class="fu">st_as_sf</span><span class="op">(</span><span class="va">coords_pred</span>, coords <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"x"</span>, <span class="st">"y"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">mod</span>, <span class="st">'svc'</span>, <span class="va">coords_sf</span>, <span class="va">region</span>, <span class="va">coords_pred_sf</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [[1]]</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-4.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-4.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[2]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-5.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-5.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[3]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-6.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-6.png" class="r-plt" alt="" width="700"></p>
 <div class="sourceCode" id="cb45"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">mod</span>, <span class="st">'stvc'</span>, ids<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">9</span><span class="op">)</span>, pred <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="co"># first 9 new locations</span></span>
 <span><span class="co">#&gt; [[1]]</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-7.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-7.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[2]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-8.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-8.png" class="r-plt" alt="" width="700"></p>
 <pre><code><span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; [[3]]</span></span></code></pre>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-9.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-24-9.png" class="r-plt" alt="" width="700"></p>
 <p>The <code>predict</code> method can be used to easily access the
 posterior predictive summaries, for both the response variable, as shown
 below, and the varying coefficients. The input <code>Coo_sf_pred</code>
@@ -554,7 +554,7 @@ for plotting.</p>
 <span>    <span class="fu">geom_sf</span><span class="op">(</span>data <span class="op">=</span> <span class="va">region</span>, fill <span class="op">=</span> <span class="st">"white"</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu">geom_sf</span><span class="op">(</span><span class="fu">aes</span><span class="op">(</span>color <span class="op">=</span> <span class="va">Mean</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
 <span>    <span class="fu">labs</span><span class="op">(</span>title <span class="op">=</span> <span class="st">"Predicted outcome at time 10"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-25-1.png" class="r-plt" width="700"></p>
+<p><img src="a02_fit_simulated_files/figure-html/unnamed-chunk-25-1.png" class="r-plt" alt="" width="700"></p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

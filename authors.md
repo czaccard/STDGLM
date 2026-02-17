@@ -10,13 +10,13 @@
 Source:
 [`DESCRIPTION`](https://github.com/czaccard/STDGLM/blob/main/DESCRIPTION)
 
-Zaccardi C (2025). *STDGLM: Spatio-Temporal Dynamic Generalized Linear
-Models*. R package version 0.2.0, <https://github.com/czaccard/STDGLM>.
+Zaccardi C (2026). *STDGLM: Spatio-Temporal Dynamic Generalized Linear
+Models*. R package version 0.2.1, <https://github.com/czaccard/STDGLM>.
 
     @Manual{,
       title = {STDGLM: Spatio-Temporal Dynamic Generalized Linear Models},
       author = {Carlo Zaccardi},
-      year = {2025},
-      note = {R package version 0.2.0},
+      year = {2026},
+      note = {R package version 0.2.1},
       url = {https://github.com/czaccard/STDGLM},
     }
